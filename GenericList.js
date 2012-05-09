@@ -151,11 +151,21 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         //              var anotherList = select(function(){ return this.make === 'Honda' });
         //              var yetAnotherList = select(function(c){ return c.make === 'Honda' });
         function select(query) {
-            var selectList = new List();
+            if (!query) return this;
+            var bind = query.toString().indexOf('this') !== -1 && !query instanceof String,
+            pass = !bind && query instanceof String,
+            selectList = new List();
+            //possibly need to bind query on this if query instanceof function
             listArray.forEach(function (tEl) {
-                with (tEl)
-                    if (eval(query))
+                with (tEl) {
+                    var boundQuery = undefined;
+                    if (bind) boundQuery = eval(query.bind(tEl));
+                    else if (pass) boundQuery = eval(query.bind(tEl, tEl));
+                    else boundQuery = eval(query);
+                    if (boundQuery) {
                         selectList.Add(tEl);
+                    }
+                }
             });
             return selectList;
         }
