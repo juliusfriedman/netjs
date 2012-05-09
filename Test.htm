@@ -27,9 +27,11 @@
 
                 var selList = myList.Where("make == 'Honda'").OrderByDescending("model").Distinct(); //2 in Count
                 //These are not working as of yet...
-                var anotherList = myList.Where(function () { this.make == 'Honda' }).OrderByDescending("model").Distinct();
-                var yetAnotherList = myList.Where(function (c) { c.make == 'Honda' }).OrderByDescending("model").Distinct();
-                var finalList = myList.Where(function () { make == 'Honda' }).OrderByDescending("model").Distinct();
+                var anotherList = myList.Where(function () { return this.make == 'Honda' }).OrderByDescending("model").Distinct();
+                var yetAnotherList = myList.Where(function (c) { return c.make == 'Honda' }).OrderByDescending("model").Distinct();
+                var finalList = myList.Where(function () { return make == 'Honda' }).OrderByDescending("model").Distinct();
+
+                if (!selList.Count() === anotherList.Count() === yetAnotherList.Count() === finalList.Count()) alert('Bug');
 
                 var outputString = '';
                 for (var index = 0; index < selList.Count(); index++)
