@@ -54,7 +54,7 @@
 
             //Publics
             this.valueOf = function () {
-                if (this instanceof myClass) return intValue;
+                if (this instanceof baseClass) return intValue;
                 return stringValue;
             }
 
@@ -77,7 +77,7 @@
                 myInt = 1;
 
             this.valueOf = function () {
-                if (this instanceof myClass) return myInt;
+                if (this instanceof baseClass) return myInt;
                 return myString;
             }
 
