@@ -18,7 +18,7 @@
         function except(ex) { alert(+ex ? 'Message: ' + ex : this.caller.toString()); }
 
         function Verify(result, expected){
-            if(!result) return result === expected;
+            if(!result || !isNaN(result)) return result === expected;
             if(expected.length){
                 result = Object.keys(result);
                 expected = Object.keys(expected);
@@ -44,16 +44,30 @@
             composed = test + anotherTest,
             yaComposed = test.cast(Number, function () {
                 return this + anotherTest
-            }),
-            yaCComposed = anotherTest.cast(Number, function () {
-                return this + test;
-            }),
+            });
+            if (!Verify(composed, 1)) except('Wrong Return');  //Because both types overload to return numbers which should equal 1 by default 0 + 1 = 1;
+            if(!Verify(yaComposed, 1)) except('Wrong Return'); //Because test Casted as a Number return 0 added to the derived class which overloads + to return a number which is default 1;
+            
+            //Should fail because anotherClass hides the function cast
+            try {
+                yaCComposed = anotherTest.cast(Number, function () {
+                    return this + test;
+                });                
+            } catch (ex) { console.log(ex); }
+
+            //Should not fail because anotherClass is an instance of myClass
             t = test.cast(anotherClass, function () {
                 return this + anotherTest
-            }),
-            tt = anotherTest.cast(myClass, function () {
-                return this + test;
             });
+
+            if (!Verify(t, 2)) except('Wrong Return');  //Because test is casted to anotherClass which gives it a default value of 1 and 1 + 1 = 2;
+
+            //Should fail because anotherClass hides the function cast
+            try {
+                tt = anotherTest.cast(myClass, function () {
+                    return this + test;
+                });
+            } catch (ex) { console.log(ex); }
         }
 
         function TestList() {
