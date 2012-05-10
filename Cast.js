@@ -99,8 +99,8 @@
         //Ensure instanceof works correctly
         subclass(anotherClass, myClass);
 
-        //Export Defined Classes for Unit Tests
-        window.baseClass = baseClass;
+        //Export Defined Classes for Unit Tests and make pseudo keyword 'abstract'
+        window.baseClass = window.abstract =  baseClass;
         window.myClass = myClass;
         window.anotherClass = anotherClass;
 
