@@ -206,7 +206,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             //The alternative would be to not freeze the object and Augment it on Insert or Add
             //The other option would be to implement Capacity and when the List resizes define new getters.
             //This will only be until we have Proxy, then we can even seal this Instance and referece the proxy.
-            for (var i = 0; i < 1000; ++i) $CreateGetterSetter(List.prototype, i);
+            for (var i = 0; i < 1024; ++i) $CreateGetterSetter(List.prototype, i);
 
         } else if (!$DefinedProperties) {
             this.$type = oType;         // Compatibility
