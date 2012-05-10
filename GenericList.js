@@ -425,12 +425,9 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                 //Iterate keys
                 keys.forEach(function (key, index) {
                     if (index < start) return;
-                    //Try to ascertain equality
-                    try {
-                        //contained is equal to the expression of tEl[key] being exactly equal to object[key]'s value
-                        if (contained = (tEl[key] === object[key])) $containsLastResult = index; //Store the last index if contained
-                        else $containsLastResult = -1;
-                    } catch (e) { contained = false; $containsLastResult = -1; }
+                    //Try to ascertain equality, contained is equal to the expression of tEl[key] being exactly equal to object[key]'s value
+                    try { contained = (tEl[key] === object[key]); contained ? $containsLastResult = index : $containsLastResult = -1; }
+                    catch (e) { contained = false; $containsLastResult = -1; }
                 });
             });
             return contained;
