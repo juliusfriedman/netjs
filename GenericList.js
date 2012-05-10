@@ -60,6 +60,31 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         } catch (E) { }
     });
 
+    //Array like Getter Logic
+    $CreateGetter = function (list, index) {
+        if (Object.defineProperty) {
+            Object.defineProperty(list, index, {
+                //writable: true, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
+                enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+                configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+                get: function () {
+                    if (index < 0 || index > list.array.length) throw "index parameter out of range in List.Get";
+                    return list.array[index];
+                },
+                set: function (value) {
+                    if (index < 0 || index > list.array.length) throw "index parameter out of range in List.Set";
+                    if (!(value instanceof list.$type)) return;
+                    list.array[index] = value;
+                }
+            });
+        } else {
+            list[index] = list.array[index];
+        }
+    }
+
+    //We have not defined properties on the prototype yet
+    $DefinedProperties = false;
+
     // Method: Constructor
     // Description: Returns a new List instance based on the given parameters.
     function List(/*type, array*/) {
@@ -75,7 +100,10 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         // ===============  Public Properties  =================================================
 
         //If supported define public properties on the List instance being created
-        if (Object.defineProperty) {
+        if (Object.defineProperty && !$DefinedProperties) {
+
+            //We have defined the properties after the first class has been instantiated
+            $DefinedProperties = true;
 
             // Property: array
             // Description: Gets or Sets in Native inner array utilized by the List for storage. The elements contained must be of the same type in which this List instance was created with.
@@ -122,8 +150,13 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                }
            });
 
+            //Inline the getter creation (65535 crashes IE9)
+            //What I am doing here is defining the getters so Array Like access works before we freeze the Object
+            //The alternative would be to not freeze the object and Augment it on Insert or Add
+            //The other option would be to implement Capacity and when the List resizes define new getters.
+            for (var i = 0; i < 1000; ++i) $CreateGetter(List.prototype, i);
 
-        } else {
+        } else if (!$DefinedProperties) {
             this.$type = oType;         // Compatibility
             this.array = listArray;
             this.$key = key;
@@ -190,6 +223,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         this.Add = function (object) {
             validate(object);
             listArray.push(object);
+            //$CreateGetter(this, listArray.length - 1);
             return this;
         }
 
@@ -241,6 +275,8 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                 else validate(what);
                 listArray.splice(where, 0, what);
             } catch (e) { throw e; }
+            //$CreateGetter(this, where);
+            return this;
         }
 
         // Method:  Sort
@@ -249,6 +285,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             comparer = comparer || genericSort;
             try { listArray.sort(comparer); }
             catch (e) { throw e; }
+            return this;
         }
 
         // Method:  All
@@ -266,11 +303,11 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             //Determine branch
             if (where < 0 || where >= listArray.length) throw "Invalid index parameter in call to List.Remove (arguments[3] = '" + where + "')";
             if (!where && this.Contains(what)) {
-                try { results.AddRange(listArray.splice($containsLastResult, howMany)); }
+                try { results.AddRange(listArray.splice($containsLastResult, howMany)); delete this[where]; }
                 catch (e) { throw e; }
             }
             else if (where) {
-                try { results.AddRange(listArray.splice(where, howMany)); }
+                try { results.AddRange(listArray.splice(where, howMany)); delete this[where]; }
                 catch (e) { throw e; }
             }
             if (all && this.Contains(what)) {

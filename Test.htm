@@ -25,13 +25,23 @@
 
                 debugger;
 
-                var selList = myList.Where("make == 'Honda'").OrderByDescending("model").Distinct(); //2 in Count
-                //These are not working as of yet...
-                var anotherList = myList.Where(function () { return this.make == 'Honda' }).OrderByDescending("model").Distinct();
-                var yetAnotherList = myList.Where(function (c) { return c.make == 'Honda' }).OrderByDescending("model").Distinct();
-                var finalList = myList.Where(function () { return make == 'Honda' }).OrderByDescending("model").Distinct();
+                //This will retrieve the 0th member from the List
+                var testGetter = myList[0]; // Car{make:'Honda',model:'Civic'}
 
-                if (!selList.Count() === anotherList.Count() === yetAnotherList.Count() === finalList.Count()) alert('Bug');
+                try {
+                    //This will produce an exception
+                    var testGetterException = myList[9];
+                }
+                catch (e) {                    
+                    //e = "index parameter out of range in List.Get"
+                }
+
+                var selList = myList.Where("make == 'Honda'").OrderByDescending("model").Distinct(); //2 in Count
+                var anotherList = myList.Where(function () { return this.make == 'Honda' }).OrderByDescending("model").Distinct(); //2 in Count
+                var yetAnotherList = myList.Where(function (c) { return c.make == 'Honda' }).OrderByDescending("model").Distinct(); //2 in Count
+                var finalList = myList.Where(function () { return make == 'Honda' }).OrderByDescending("model").Distinct(); //0 in Count because make is not quantified
+
+                if (selList.Count() !== 2 || anotherList.Count() !== 2 || yetAnotherList.Count() !== 2 || finalList.Count() !== 0) alert('Bug');
 
                 var outputString = '';
                 for (var index = 0; index < selList.Count(); index++)
