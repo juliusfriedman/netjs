@@ -1,4 +1,4 @@
-﻿/Operator Overloading
+﻿//Operator Overloading
 
 var myClass = function () {
 

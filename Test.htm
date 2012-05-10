@@ -4,6 +4,8 @@
     <title>Javascript Generic List Implementation</title>
 
     <script type="text/javascript" src="GenericList.js"></script>
+    <script type="text/javascript" src="Cast.js"></script>
+    <script type="text/javascript" src="Reflection.js"></script>
 
     <script type="text/javascript">
 
@@ -24,6 +26,8 @@
                 myList.Add(new Car("Honda", "Cr-V"));
 
                 debugger;
+
+                Reflection.getArguments(myList.Add);
 
                 //This will retrieve the 0th member from the List
                 var testGetter = myList[0]; // Car{make:'Honda',model:'Civic'}
