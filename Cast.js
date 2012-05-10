@@ -37,23 +37,3 @@ this.valueOf = function () {
 
 }
 
-
-//Tests
-
-var test = new myClass(),
-anotherTest = new anotherClass(),
-composed = test + anotherTest,
-yaComposed = test.cast(Number, function () {
-    return this + anotherTest
-}),
-yaCComposed = anotherTest.cast(Number, function () {
-    return this + test;
-}),
-t = test.cast(anotherClass, function () {
-    return this + anotherTest
-}),
-tt = anotherTest.cast(myClass, function () {
-    return this + test;
-});
-
-debugger;

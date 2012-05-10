@@ -16,9 +16,7 @@
         start = symbols.indexOf('(', start);
         end = symbols.indexOf(')', start);
         var args = [];
-        symbols.substr(start + 1, end - start - 1).split(',').forEach(function (argument) {
-            args.push(argument);
-        });
+        (symbols.substr(start + 1, end - start - 1).split(',').forEach(function (argument) { args.push(argument); }));
         //symbols.substr(start + 1, end - start - 1).split(',').forEach(args.push, this);
         return args;
     };
