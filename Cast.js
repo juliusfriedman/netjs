@@ -3,7 +3,7 @@
     return Function.prototype.cast ? undefined : (function () {
 
         //Operator Overloading
-        function abstractError(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + constructor; }
+        function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + constructor; }
 
         //http://www.golimojo.com/etc/js-subclass.html
         //Modified for netjs by Julius Friedman
@@ -12,7 +12,7 @@
 
             //Possibly should augment derived to ensure it is not subclassed on accident again
 
-            if (constructor.abstract && !derivedConstructor) abstractError(constructor);
+            if (constructor.abstract && !derivedConstructor) abstractConstructor(constructor);
 
             function surrogateConstructor() { constructor.apply(derivedConstructor); }
 
@@ -41,7 +41,7 @@
         } else Function.prototype.abstract = false;
 
         //Classes for testing
-        var baseClass = abstractError; //(this);
+        var baseClass = abstractConstructor; //(this);
         baseClass.abstract = true;
 
         //Test class which can be instantiated derived from base
@@ -94,7 +94,7 @@
         Function.prototype._call = Function.prototype.call;
 
         //New call function intercept
-        Function.prototype.call = function () { return this.abstract ? abstractError(this.base || this.constructor || this.prototype || this) : Function.prototype._call.bind(this)(arguments) };
+        Function.prototype.call = function () { return this.abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : Function.prototype._call.bind(this)(arguments) };
 
         //Ensure instanceof works correctly
         subclass(anotherClass, myClass);
