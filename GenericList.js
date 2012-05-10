@@ -33,7 +33,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
     // ===============  Private Methods  ====================================================
     //These methods will not be seen in a call of toString on the List constructor
-    
+
     //Destructor Logic
     $List$Dispose = (function (who, disposing) {
         try {
@@ -90,10 +90,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             if (bind) result = (query.bind(tEl)());
             else if (pass) {
                 try { result = (query(tEl)); }
-                catch (e) {
-                    try { with (tEl) result = (query(tEl)); }
-                    catch (e) { result = false; }
-                }
+                catch (e) { result = false; }
             }
             else with (tEl) result = eval(query);
             if (result) selectList.Add(tEl);
@@ -131,6 +128,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                 }
             });
         } else {
+            //Create alias
             list[index] = list.array[index];
         }
     }
@@ -214,7 +212,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             this.$type = oType;         // Compatibility
             this.array = listArray;
             this.$key = key;
-        }        
+        }
 
         // ===============  Public Methods  ======================================================
 
