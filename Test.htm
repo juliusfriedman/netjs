@@ -18,7 +18,7 @@
         function except(ex) { alert(+ex ? 'Message: ' + ex : this.caller.toString()); }
 
         function Verify(result, expected){
-            if(!result || !isNaN(result)) return result === expected;
+            if(!result || !isNaN(result) || (true === expected || false === expected)) return result === expected;
             if(expected.length){
                 result = Object.keys(result);
                 expected = Object.keys(expected);
