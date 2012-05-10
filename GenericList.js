@@ -138,81 +138,16 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
     // Method: Constructor
     // Description: Returns a new List instance based on the given parameters.
-    function List(/*type, array*/) {
+    function List(/*type, array, capacity*/) {
 
         // ===============  Private Attributes  =================================================
 
         var key = ++$List$Created,  // Identify each List instance with an incremented Id.
+        capacity = arguments[2] || 10,        // Used to create getters and setters until I have worked out a different way
         oType = undefined,      // Used to ensure that all objects added to the list are of the same type.
         $containsLastResult = undefined, //Storage pointer for the last result of Contains call
         listArray = [];         // Stores all the list data.
-        $List$Instances[key] = this; // Store instance with key        
-
-        // ===============  Public Properties  =================================================
-
-        //If supported define public properties on the List instance being created
-        if (Object.defineProperty && !$DefinedProperties) {
-
-            //We have defined the properties after the first class has been instantiated
-            $DefinedProperties = true;
-
-            // Property: array
-            // Description: Gets or Sets in Native inner array utilized by the List for storage. The elements contained must be of the same type in which this List instance was created with.
-            Object.defineProperty(List.prototype, 'array',
-           {
-               // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
-               enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
-               configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
-               get: function () {
-                   return listArray;
-               },
-               set: function (value) {
-                   //Ensure Array
-                   if (value instanceof Array) {
-                       //Ensure length
-                       if (value.length) {
-                           //Ensure types
-                           value.forEach(function (v) { if (v.constructor !== oType) throw "Only one object type is allowed in a list"; });
-                       }
-                       //Set member
-                       listArray = value;
-                   }
-               }
-           });
-
-            // Property: $key
-            // Description: Gets the machine key which identifies this List instance in the memory of all created List instances.
-            Object.defineProperty(List.prototype, '$key',
-           {
-               configurable: true,
-               get: function () {
-                   return key;
-               }
-           });
-
-            // Property: $key
-            // Description: Gets the constructor or type in which this List was created with
-            Object.defineProperty(List.prototype, '$type',
-           {
-               enumerable: true,
-               configurable: true,
-               get: function () {
-                   return oType;
-               }
-           });
-
-            //Inline the getter creation (65535 crashes IE9)
-            //What I am doing here is defining the getters so Array Like access works before we freeze the Object
-            //The alternative would be to not freeze the object and Augment it on Insert or Add
-            //The other option would be to implement Capacity and when the List resizes define new getters.
-            //This will only be until we have Proxy, then we can even seal this Instance and referece the proxy.
-            for (var i = 0; i < 1024; ++i) $CreateGetterSetter(List.prototype, i);
-
-        } else if (!$DefinedProperties) {
-            this.$type = oType;         // Compatibility
-            this.array = listArray;
-            this.$key = key;
-        }
+        $List$Instances[key] = this; // Store instance with key                
 
         // ===============  Public Methods  ======================================================
 
@@ -315,7 +250,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             else if (where) {
                 try { results.AddRange(listArray.splice(where, howMany)); delete this[where]; }
                 catch (e) { throw e; }
-            }            
+            }
             if (all && this.Contains(what)) {
                 try { results.AddRange(this.Remove(undefined, undefined, $containsLastResult)); }
                 catch (E) { throw e; }
@@ -521,10 +456,12 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         //Copy constructor (utilized if first parameter in constructor is a List instance
         if (arguments[0] && arguments[0] instanceof List) {
+            capacity += arguments[0].length;
             oType = arguments[0].$type; // Set the type of the List from the given
             listArray = arguments[0].array; // Set the inner array of the List from the given
         } else if (arguments[0] && arguments[0].length) { //If there is a type given it may be contained in an array which is to be used as the interal array..       
             try {
+                capacity += arguments[0].length;
                 oType = arguments[0][0].constructor; // Set type of the List from the first element in the given array
                 arguments[1] = arguments[1] || arguments[0]; // Make a new argument incase one is not given which should be the array given. This will be used after AddRange is constructed to verify each given item complies with the List logic.
             } catch (_) { }
@@ -532,6 +469,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         //If there is an array given then each member of the array must be added and verified
         if (arguments[1] && arguments[1].length) {
+            if (capacity < arguments[1].length) capacity += arguments[1].length;
             try {
                 this.AddRange(arguments[1]);
             } catch (e) { throw e; }
@@ -542,6 +480,86 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         //Add event for destructor in executed closure
         window.addEventListener('unload', function (self) { $List$Dispose(self, true); } (this));
+
+        // ===============  Public Properties  =================================================
+
+        //If supported define public properties on the List instance being created
+        if (Object.defineProperty && !$DefinedProperties) {
+
+            //We have defined the properties after the first class has been instantiated
+            $DefinedProperties = true;
+
+            // Property: array
+            // Description: Gets or Sets in Native inner array utilized by the List for storage. The elements contained must be of the same type in which this List instance was created with.
+            Object.defineProperty(List.prototype, 'array',
+           {
+               // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
+               enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+               configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+               get: function () {
+                   return listArray;
+               },
+               set: function (value) {
+                   //Ensure Array
+                   if (value instanceof Array) {
+                       //Ensure length
+                       if (value.length) value.forEach(function (v) { $Validate(this, v); }, this); //Ensure types
+                       //Set member
+                       listArray = value;
+                   }
+               }
+           });
+
+            // Property: $key
+            // Description: Gets the machine key which identifies this List instance in the memory of all created List instances.
+            Object.defineProperty(List.prototype, '$key',
+           {
+               configurable: true,
+               get: function () {
+                   return key;
+               }
+           });
+
+            // Property: $key
+            // Description: Gets the constructor or type in which this List was created with
+            Object.defineProperty(List.prototype, '$type',
+           {
+               enumerable: true,
+               configurable: true,
+               get: function () {
+                   return oType;
+               }
+           });
+
+            // Property: $capacity
+            // Description: Gets the capacity associated with this list upon creation
+            Object.defineProperty(List.prototype, 'Capacity',
+           {
+               enumerable: true,
+               configurable: true,
+               get: function () {
+                   return capacity;
+               },
+               set: function (newCapacity) {
+                   //Todo                
+               }
+           });
+
+            //Inline the getter creation (65535 crashes IE9)
+            //What I am doing here is defining the getters so Array Like access works before we freeze the Object
+            //The alternative would be to not freeze the object and Augment it on Insert or Add
+            //The other option would be to implement Capacity and when the List resizes define new getters.
+            //This will only be until we have Proxy, then we can even seal this Instance and referece the proxy.
+            (function (counter) { while (counter >= 0) $CreateGetterSetter(List.prototype, counter--); })(Math.max(capacity, Math.min(65535, capacity * 2)));
+            //And I bet before then I could even use Object.watch or a polyfill of it to enfore a pseudo 'missing_method' and then invoke this function... how fortuitist
+
+        } else if (!$DefinedProperties) {
+            // Compatibility
+            this.Capacity = capacity;
+            this.$type = oType;
+            this.array = listArray;
+            this.$key = key;
+        }
 
         //freeze new instance
         return Object.freeze(this);

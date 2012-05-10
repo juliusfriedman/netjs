@@ -1,5 +1,4 @@
 ﻿//Reflection
-
 ~function (extern) {
 
     var Reflection = this.Reflection = (function () { return Reflection; });
@@ -17,8 +16,9 @@
         end = symbols.indexOf(')', start);
         var args = [];
         (symbols.substr(start + 1, end - start - 1).split(',').forEach(function (argument) { args.push(argument); }));
-        //symbols.substr(start + 1, end - start - 1).split(',').forEach(args.push, this);
-        return args;
+        //Deterine if I should use RegExp
+        //I know that using RegExp on a string may be faster then using the instanceof in certain cases as well as looping scopes
+        return args;        
     };
 
     extern.Reflection = extern.reflection = Reflection;
