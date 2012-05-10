@@ -395,7 +395,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         //Method: ToArray
         //Description: Copies the elements of the List to a new array.
-        this.ToArray = function () { return Array(listArray); }
+        this.ToArray = function () { return new Array(listArray); }
 
         // Method:  OrderBy
         // Description:  Order (ascending) the objects in the list by the given object property name.
@@ -478,7 +478,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             if (start < 0 || end >= listArray.length) throw "Invalid start or end parameter in call to List.ForEach";
             listArray.forEach(function (tEl, index) {
                 if (start > index || end < index) return;
-                with (tEl) query();
+                query(tEl, index);
             });
         }
 
@@ -498,21 +498,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         // Method:  Any
         // Description:  returns true on the first element in the List which meets the given query.
-        this.Any = function (query) {
-            var result = Boolean(query);
-            if (!result) return false;
-            result = false;
-            try {
-                listArray.forEach(function (tEl) {
-                    with (tEl)
-                        if (query()) {
-                            result = true;
-                            throw new Error();
-                        }
-                });
-            } catch (E) { }
-            return result;
-        }
+        this.Any = function (query) { return $Select(this, query).Count() !== 0; }
 
         // Method:  LastOrDefault
         // Description:  Return the last object in the list that meets the 'query' criteria or null if no objects are found.
@@ -528,10 +514,10 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             if (!query) return this;
             start = start || 0;
             if (start < 0 || start >= listArray.length) throw "Invalid start parameter in call to List.SkipWhile";
-            var results = new List();
+            var has = this.Where(query), results = new List();
             listArray.forEach(function (tEl, index) {
                 if (index < start) return;
-                with (tEl) if (!query()) results.Add(tEl);
+                if (!has.Contains(tEl)) results.Add(tEl);
             });
             return results;
         }
