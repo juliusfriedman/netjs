@@ -12,7 +12,7 @@
 
             //Possibly should augment derived to ensure it is not subclassed on accident again
 
-            if (constructor.abstract && !derivedConstructor) abstractConstructor(constructor);
+            if (constructor.$abstract && !derivedConstructor) abstractConstructor(constructor);
 
             function surrogateConstructor() { constructor.apply(derivedConstructor); }
 
@@ -34,15 +34,15 @@
                 enumerable: true,
                 configurable: true,
                 get: function () {
-                    return this.abstract || false;
+                    return this.$abstract || false;
                 },
-                set: function (value) { return this.abstract = value; }
+                set: function (value) { return this.$abstract = value; }
             });
-        } else Function.prototype.abstract = false;
+        } else Function.prototype.$abstract = false;
 
         //Classes for testing
         var baseClass = abstractConstructor; //(this);
-        baseClass.abstract = true;
+        baseClass.$abstract = true;
 
         //Test class which can be instantiated derived from base
         var myClass = function () {
@@ -94,13 +94,15 @@
         Function.prototype._call = Function.prototype.call;
 
         //New call function intercept
-        Function.prototype.call = function () { return this.abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : Function.prototype._call.bind(this)(arguments) };
+        Function.prototype.call = function () { return this.$abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : Function.prototype._call.bind(this)(arguments) };
 
         //Ensure instanceof works correctly
         subclass(anotherClass, myClass);
 
         //Export Defined Classes for Unit Tests and make pseudo keyword 'abstract'
-        window.baseClass = window.abstract =  baseClass;
+        window.baseClass = window.$abstract = baseClass;
+        try { window.abstract = window.$abstract; }
+        catch (_) { }
         window.myClass = myClass;
         window.anotherClass = anotherClass;
 
