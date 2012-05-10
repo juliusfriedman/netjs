@@ -26,6 +26,17 @@
             return derivedConstructor;
         }
 
+        //The default constructor of the soon to be pseudo Class / Type system
+        //The reason this is here is because constructors must return void this we cannot return the apply call to the top of the stack with the defaultConstructor
+        function applyInstance(constructor, derivedConstructor) { return constructor.apply(derivedConstructor); }
+
+        //The default constructor of the soon to be pseudo Class / Type system
+        function defaultConstructor(instance) {
+            instance = instance || this;
+            try { applyInstance(instance, instance.$base || Object); }
+            catch (ex) { throw abstractConstructor(instance); }
+        }
+
         //Make the concept of abstract
         //Possibly should be true so functions cannot be called new on accident
         if (Object.definePropety) {
@@ -40,17 +51,32 @@
             });
         } else Function.prototype.$abstract = false;
 
-        //Classes for testing
-        var baseClass = abstractConstructor; //(this);
+        //Pseudo Classes
+        var baseClass = defaultConstructor; //(this);
         baseClass.$abstract = true;
+
+        //The Class which represents classes
+        //The Mother of All Mother Functions
+        //The Constructor of No Contructor
+        //All in one line
+        //Featuring more comments than code
+        //And none of them are even relevant...
+        //NOW I JUST HAVE TO FIGURE OUT HOW TO GET CONSTRUCTOR CHAINING TO WORK!!!! UGH!
+        
+        //If the base class is abstract return the reference to it otherwise return the reference to the result of subclass given this instance and the baseClass
+        function Class(base) { return base.$abstract ? base : subclass(this, base); }
+
+        //Classes for testing
 
         //Test class which can be instantiated derived from base
         var myClass = function () {
 
             //Privates
-            var base = baseClass,
+            var base = Class(baseClass),
                 intValue = Number(0),
                 stringValue = String('');
+
+
 
             //Publics
             this.valueOf = function () {
@@ -59,7 +85,6 @@
             }
 
             this.cast = Function.prototype.cast;
-
         }
 
         //Ensure instanceof works correctly
@@ -101,8 +126,6 @@
 
         //Export Defined Classes for Unit Tests and make pseudo keyword 'abstract'
         window.baseClass = window.$abstract = baseClass;
-        try { window.abstract = window.$abstract; }
-        catch (_) { }
         window.myClass = myClass;
         window.anotherClass = anotherClass;
 
