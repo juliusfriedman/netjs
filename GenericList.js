@@ -60,7 +60,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                 })();
             }
 
-        } catch (E) { }
+        } catch (_) { }
     });
 
     // Method:  $Validate
@@ -90,7 +90,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             if (bind) result = (query.bind(tEl)());
             else if (pass) {
                 try { result = (query(tEl)); }
-                catch (e) { result = false; }
+                catch (_) { result = false; }
             }
             else with (tEl) result = eval(query);
             if (result) selectList.Add(tEl);
@@ -315,7 +315,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             else if (where) {
                 try { results.AddRange(listArray.splice(where, howMany)); delete this[where]; }
                 catch (e) { throw e; }
-            }
+            }            
             if (all && this.Contains(what)) {
                 try { results.AddRange(this.Remove(undefined, undefined, $containsLastResult)); }
                 catch (E) { throw e; }
@@ -427,7 +427,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                     if (index < start) return;
                     //Try to ascertain equality, contained is equal to the expression of tEl[key] being exactly equal to object[key]'s value
                     try { contained = (tEl[key] === object[key]); contained ? $containsLastResult = index : $containsLastResult = -1; }
-                    catch (e) { contained = false; $containsLastResult = -1; }
+                    catch (_) { contained = false; $containsLastResult = -1; }
                 });
             });
             return contained;
@@ -439,7 +439,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             if (!what) return -1;
             else if (start < 0) throw "Invalid start paramater given in List.IndexOf";
             try { return this.Contains(what, start || 0) ? $containsLastResult : -1; }
-            catch (e) { return -1; }
+            catch (_) { return -1; }
         }
 
         // Method:  LastIndexOf
@@ -462,7 +462,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                 //this.ForEach(function (tEl) { if (!results.Contains(tEl)) results.Add(tEl); });
                 //Equivelant to the following except the below is native 
                 listArray.forEach(function (tEl) { if (!results.Contains(tEl)) results.Add(tEl); });
-            } catch (E) { }
+            } catch (_) { }
             return results;
         }
 
@@ -527,7 +527,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             try {
                 oType = arguments[0][0].constructor; // Set type of the List from the first element in the given array
                 arguments[1] = arguments[1] || arguments[0]; // Make a new argument incase one is not given which should be the array given. This will be used after AddRange is constructed to verify each given item complies with the List logic.
-            } catch (e) { }
+            } catch (_) { }
         };
 
         //If there is an array given then each member of the array must be added and verified

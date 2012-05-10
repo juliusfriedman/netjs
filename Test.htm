@@ -25,7 +25,7 @@
                 if(result.length !== expected.length) return false;
             }
             try{ result.forEach(function(o, i){ if(o !== expected[i]) throw Error; }); }
-            catch(e) { return false;}
+            catch(_) { return false;}
             return true;
         }
 
@@ -90,7 +90,7 @@
                 //This will produce an exception
                 var testGetterException = myList[9];
             }
-            catch (e) {
+            catch (_) {
                 //e = "index parameter out of range in List.Get"
             }
 
