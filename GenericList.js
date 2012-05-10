@@ -31,6 +31,9 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     var $List$Created = -1, // Id counter used to identify each List instance.
         $List$Instances = {}, // Storage for each instance which has yet to be disposed.        
 
+    // ===============  Private Methods  ====================================================
+    //These methods will not be seen in a call of toString on the List constructor
+    
     //Destructor Logic
     $List$Dispose = (function (who, disposing) {
         try {
@@ -60,20 +63,70 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         } catch (E) { }
     });
 
-    //Array like Getter Logic
-    $CreateGetter = function (list, index) {
+    // Method:  $Validate
+    // Description:  Make sure that all objects added to the List are of the same type.
+    function $Validate(list, object) {
+        //If we have not yet determined a type it is determined by the first object added
+        if (!list.$type) return;
+        else if (object.constructor !== list.$type && !object.constructor instanceof list.$type)
+            throw "Only one object type is allowed in a list";
+    }
+
+    // Method:  $Select
+    // Description:  Return a copy of this List object with only the elements that meet the criteria
+    //               as defined by the 'query' parameter.
+    // Usage Example:  
+    //              var selList = $Select(this,"make == 'Honda'").
+    //              var anotherList = $Select(this,function(){ return this.make === 'Honda' });
+    //              var yetAnotherList = $Select(this,function(c){ return c.make === 'Honda' });
+    function $Select(list, query) {
+        if (!query) return this;
+        var bind = (query instanceof Function) && query.toString().indexOf('this') !== -1,
+            pass = !bind && typeof query !== 'string';
+        selectList = new List();
+        //possibly need to bind query on this if query instanceof function
+        list.array.forEach(function (tEl) {
+            var result = undefined;
+            if (bind) result = (query.bind(tEl)());
+            else if (pass) {
+                try { result = (query(tEl)); }
+                catch (e) {
+                    try { with (tEl) result = (query(tEl)); }
+                    catch (e) { result = false; }
+                }
+            }
+            else with (tEl) result = eval(query);
+            if (result) selectList.Add(tEl);
+        });
+        return selectList;
+    }
+
+    // Method:  $GenericSort
+    // Description:  Sort comparison function using an object property name.  Pass this function to
+    //               the Javascript sort function to sort the list by a given property name.
+    // Usage Example:
+    //              var sortedList = listArray.sort($GenericSort('model'));
+    function $GenericSort(property) {
+        return function (a, b) {
+            return (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+        }
+    }
+
+    //Array like Getter/Setter Logic, creates a getter for the List to access the inner array at the given index
+    $CreateGetterSetter = function (list, index) {
         if (Object.defineProperty) {
             Object.defineProperty(list, index, {
                 //writable: true, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
-                enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
-                configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+                //enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+                //configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
                 get: function () {
                     if (index < 0 || index > list.array.length) throw "index parameter out of range in List.Get";
                     return list.array[index];
                 },
                 set: function (value) {
                     if (index < 0 || index > list.array.length) throw "index parameter out of range in List.Set";
-                    if (!(value instanceof list.$type)) return;
+                    $Validate(list, value);
+                    //if (!(value instanceof list.$type)) throw "Only one object type is allowed in a list";
                     list.array[index] = value;
                 }
             });
@@ -154,76 +207,24 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             //What I am doing here is defining the getters so Array Like access works before we freeze the Object
             //The alternative would be to not freeze the object and Augment it on Insert or Add
             //The other option would be to implement Capacity and when the List resizes define new getters.
-            for (var i = 0; i < 1000; ++i) $CreateGetter(List.prototype, i);
+            //This will only be until we have Proxy, then we can even seal this Instance and referece the proxy.
+            for (var i = 0; i < 1000; ++i) $CreateGetterSetter(List.prototype, i);
 
         } else if (!$DefinedProperties) {
             this.$type = oType;         // Compatibility
             this.array = listArray;
             this.$key = key;
-        }
-
-        // ===============  Private Methods  ====================================================
-
-        // Method:  validate
-        // Description:  Make sure that all objects added to the List are of the same type.
-        function validate(object) {
-            //If we have not yet determined a type it is determined by the first object added
-            if (!oType) {
-                oType = object.constructor;
-            }
-            else if (object.constructor !== oType) {
-                throw "Only one object type is allowed in a list";
-            }
-        }
-
-        // Method:  select
-        // Description:  Return a copy of this List object with only the elements that meet the criteria
-        //               as defined by the 'query' parameter.
-        // Usage Example:  
-        //              var selList = select("make == 'Honda'").
-        //              var anotherList = select(function(){ return this.make === 'Honda' });
-        //              var yetAnotherList = select(function(c){ return c.make === 'Honda' });
-        function select(query) {
-            if (!query) return this;
-            var bind = (query instanceof Function) && query.toString().indexOf('this') !== -1,
-            pass = !bind && typeof query !== 'string';
-            selectList = new List();
-            //possibly need to bind query on this if query instanceof function
-            listArray.forEach(function (tEl) {
-                var result = undefined;
-                if (bind) result = (query.bind(tEl)());
-                else if (pass) {
-                    try { result = (query(tEl)); }
-                    catch (e) {
-                        try { with (tEl) result = (query(tEl)); }
-                        catch (e) { result = false; }
-                    }
-                }
-                else with (tEl) result = eval(query);
-                if (result) selectList.Add(tEl);
-            });
-            return selectList;
-        }
-
-        // Method:  genericSort
-        // Description:  Sort comparison function using an object property name.  Pass this function to
-        //               the Javascript sort function to sort the list by a given property name.
-        // Usage Example:
-        //              var sortedList = listArray.sort(genericSort('model'));
-        function genericSort(property) {
-            return function (a, b) {
-                return (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
-            }
-        }
+        }        
 
         // ===============  Public Methods  ======================================================
 
         // Method:  Add
         // Description:  Add an element to the end of the list.
         this.Add = function (object) {
-            validate(object);
+            if (!oType) oType = object.constructor;
+            $Validate(this, object);
             listArray.push(object);
-            //$CreateGetter(this, listArray.length - 1);
+            //$CreateGetterSetter(this, listArray.length - 1);
             return this;
         }
 
@@ -271,18 +272,25 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             if (where < 0 || where >= listArray.length) throw "Invalid index parameter in call to List.Insert (arguments[0] = '" + where + "')";
             if (!what) return this;
             try {
-                if (what.length) what.forEach(validate)
-                else validate(what);
+                if (what.length) {
+                    if (!oType) oType = what[0].constructor;
+                    what.forEach(function (tEl) {
+                        $Validate(this, tEl);
+                    }, this);
+                } else {
+                    if (!oType) oType = what.constructor;
+                    $Validate(this, what);
+                }
                 listArray.splice(where, 0, what);
             } catch (e) { throw e; }
-            //$CreateGetter(this, where);
+            //$CreateGetterSetter(this, where);
             return this;
         }
 
         // Method:  Sort
-        // Description:  Sorts the elements in the entire List using the specified comparer or genericSort
+        // Description:  Sorts the elements in the entire List using the specified comparer or $GenericSort
         this.Sort = function (comparer) {
-            comparer = comparer || genericSort;
+            comparer = comparer || $GenericSort;
             try { listArray.sort(comparer); }
             catch (e) { throw e; }
             return this;
@@ -349,12 +357,12 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         // Method:  Where
         // Description:  Return a copy of this List object with only the elements that meet the criteria
         //               as defined by the 'query' parameter.
-        this.Where = function (query) { return query ? select(query) : null; }
+        this.Where = function (query) { return query ? $Select(this, query) : null; }
 
         // Method:  FirstOrDefault
         // Description:  Return the first object in the list that meets the 'query' criteria or null if no objects are found.        
         this.FirstOrDefault = function (query/*, last*/) {
-            var list = select(query),
+            var list = $Select(this, query),
             last = arguments[1] || false;
             return list ? list.ElementAt(last ? listArray.length - 1 : 0) : null;
         }
@@ -395,7 +403,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         // Description:  Order (ascending) the objects in the list by the given object property name.
         this.OrderBy = function (property/*, desc*/) {
             //Make the list and the interval array
-            var l = new List(listArray.slice(0).sort(genericSort(property))),
+            var l = new List(listArray.slice(0).sort($GenericSort(property))),
             //Determine if we need to reverse
             desc = arguments[1] || false;
             if (desc) l.Reverse();
