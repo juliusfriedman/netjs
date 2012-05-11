@@ -98,6 +98,13 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         return selectList;
     }
 
+    // Method:  $Default
+    // Description:  Returns the default value for the list
+    function $Default(list) {
+        try { return new list.$type(); }
+        catch (_) { return null; }
+    }
+
     // Method:  $GenericSort
     // Description:  Sort comparison function using an object property name.  Pass this function to
     //               the Javascript sort function to sort the list by a given property name.
@@ -111,30 +118,29 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
     //Array like Getter/Setter Logic, creates a getter for the List to access the inner array at the given index
     $CreateGetterSetter = function (list, index) {
-        if (Object.defineProperty) {
-            Object.defineProperty(list, index, {
-                //writable: true, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
-                //enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
-                //configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
-                get: function () {
-                    if (index < 0 || index > list.array.length) throw "index parameter out of range in List.Get";
-                    return list.array[index];
-                },
-                set: function (value) {
-                    if (index < 0 || index > list.array.length) throw "index parameter out of range in List.Set";
-                    $Validate(list, value);
-                    //if (!(value instanceof list.$type)) throw "Only one object type is allowed in a list";
-                    list.array[index] = value;
-                }
-            });
-        } else {
-            //Create alias
-            list[index] = list.array[index];
+        try {
+            if (Object.defineProperty) {
+                Object.defineProperty(list, index, {
+                    //writable: true, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
+                    //enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+                    //configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+                    get: function () {
+                        if (index < 0 || index > this.array.length) throw "index parameter out of range in List.Get";
+                        return this.array[index];
+                    },
+                    set: function (value) {
+                        if (index < 0 || index > this.array.length) throw "index parameter out of range in List.Set";
+                        $Validate(list, value);
+                        this.array[index] = value;
+                    }
+                });
+            } else {
+                //Create alias
+                list[index] = list.array[index];
+            }
         }
+        catch (_) { }
     }
-
-    //We have not defined properties on the prototype yet
-    $DefinedProperties = false;
 
     // Method: Constructor
     // Description: Returns a new List instance based on the given parameters.
@@ -178,26 +184,55 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         // Description:  Removes all elements from this List instance
         this.Clear = function () { listArray = []; return this; }
 
-        // Method:  CopyTo
-        // Description:  Adds all elemets in this List to the given array, List or Object. Returns the source
-        this.CopyTo = function (source) {
-            if (!source) return;
-            if (source instanceof List) {
-                listArray.forEach(function (tEl) {
-                    source.Add(tEl);
-                });
-            } else if (source instanceof Array) {
-                listArray.forEach(function (tEl) {
-                    source.push(tEl);
-                });
-            } else {
-                listArray.forEach(function (tEl) {
-                    source[tEl.toString()] = tEl;
-                });
-            }
-            return source;
+        // Method:  Take
+        // Description:  Retrieves all elements from this List instance where the index is less than the given index, and there are no more than count items
+        this.Take = function (index, count) {
+            count = count || listArray.length;
+            /*
+            if (index < 0) throw 'Invalid index given in List.Take'
+            if (count >= listArray.length) throw 'Invalid count given in List.Take'
+            var taken = new List();
+            this.ForEach(function (o) { taken.Add(o); }, index, count);
+            return taken;
+            */
+            return this.Where(function (item, index) { return index < count; }, index, count);
         }
 
+        // Method:  Skip
+        // Description:  Retrieves all elements from this List instance where the index is less than the given index, and there are no more than count items
+        this.Skip = function (index, count) {
+            count = count || listArray.length;
+            /*
+            if (index < 0) throw 'Invalid index given in List.Skip'
+            if (count >= listArray.length) throw 'Invalid count given in List.Skip'
+            var skipped = new List();
+            this.ForEach(function (o) { taken.Add(o); }, index, count);
+            return taken;
+            */
+            return this.Where(function (item, index) { return index >= count; }, index, count);
+        }
+
+        // Method:  CopyTo
+        // Description:  Adds all elemets in this List to the given array, List or Object. Returns the source. If no source is given a new Native Array is returned
+        this.CopyTo = function (source) {
+            source = source || [];
+            try {
+                if (source instanceof List) {
+                    listArray.forEach(function (tEl) {
+                        source.Add(tEl);
+                    });
+                } else if (source instanceof Array) {
+                    listArray.forEach(function (tEl) {
+                        source.push(tEl);
+                    });
+                } else {
+                    listArray.forEach(function (tEl) {
+                        source[tEl.toString()] = tEl;
+                    });
+                }
+                return source;
+            } catch (e) { throw e; }
+        }
         // Method:  Insert
         // Description:  Inserts an element into the List at the specified index (where).
         // Insert and InsertRange are the same physcially. (They alias eachother)
@@ -284,7 +319,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         // Description:  Get the element at a specific index in the list.
         this.ElementAt = function (index) {
             if (index >= listArray.length || index < 0) throw "Invalid index parameter in call to List.ElementAt";
-            return listArray[index];
+            return listArray[index] || $Default(this); ;
         }
 
         // Method:  Where
@@ -297,7 +332,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         this.FirstOrDefault = function (query/*, last*/) {
             var list = $Select(this, query),
             last = arguments[1] || false;
-            return list ? list.ElementAt(last ? listArray.length - 1 : 0) : null;
+            return list && list.array.length ? list.array[last ? listArray.length - 1 : 0] : $Default(this);
         }
 
         // Method:  Count
@@ -416,17 +451,17 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         // Method: TrueForAll
         // Description: etermines whether every element in the List matches the conditions defined by the specified predicate.
-        this.TrueForAll = function (query) { return listArray.length === this.Where(query).Count(); }
+        this.TrueForAll = function (query) { return query ? listArray.length === this.Where(query).Count() : undefined; }
 
         // Extension Methods
 
         // Method:  First
         // Description:  returns the first element in the List or null if nothing is contained
-        this.First = function () { return listArray.length ? listArray[0] : null; }
+        this.First = function (query) { return query ? this.FirstOrDefault(query) : listArray.length ? listArray[0] : null; }
 
         // Method:  Last
         // Description:  returns the last element in the List or null if nothing is contained
-        this.Last = function () { return listArray.length ? listArray[listArray.length - 1] : null; }
+        this.Last = function (query) { return query ? this.LastOrDefault(query) : listArray.length ? listArray[listArray.length - 1] : null; }
 
         // Method:  Any
         // Description:  returns true on the first element in the List which meets the given query.
@@ -434,7 +469,8 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         // Method:  LastOrDefault
         // Description:  Return the last object in the list that meets the 'query' criteria or null if no objects are found.
-        this.LastOrDefault = function (query) { return query ? this.FirstOrDefault(query, true) : null; }
+        this.LastOrDefault = function (query) { return this.FirstOrDefault(query, true); }
+        //this.LastOrDefault = function (query) { return query ? this.FirstOrDefault(query, true) : $Default(this); }
 
         // Method:  Single
         // Description:  Returns the first object in the list that meets the 'query' criteria or null if no objects are found.
@@ -453,6 +489,10 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             });
             return results;
         }
+
+        // Method:  Random
+        // Description:  Returns a random element which matches the given query or a random element from the List if no query is given
+        this.Random = function (query) { return query ? this.Where(query).ElementAt(Math.floor((Math.random() * listArray.length) + 0)) : this.ElementAt(Math.floor((Math.random() * listArray.length) + 0)); }
 
         //Copy constructor (utilized if first parameter in constructor is a List instance
         if (arguments[0] && arguments[0] instanceof List) {
@@ -484,14 +524,11 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         // ===============  Public Properties  =================================================
 
         //If supported define public properties on the List instance being created
-        if (Object.defineProperty && !$DefinedProperties) {
-
-            //We have defined the properties after the first class has been instantiated
-            $DefinedProperties = true;
+        if (Object.defineProperty) {
 
             // Property: array
             // Description: Gets or Sets in Native inner array utilized by the List for storage. The elements contained must be of the same type in which this List instance was created with.
-            Object.defineProperty(List.prototype, 'array',
+            Object.defineProperty(this, 'array',
            {
                // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
                enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
@@ -512,7 +549,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
             // Property: $key
             // Description: Gets the machine key which identifies this List instance in the memory of all created List instances.
-            Object.defineProperty(List.prototype, '$key',
+            Object.defineProperty(this, '$key',
            {
                configurable: true,
                get: function () {
@@ -522,7 +559,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
             // Property: $key
             // Description: Gets the constructor or type in which this List was created with
-            Object.defineProperty(List.prototype, '$type',
+            Object.defineProperty(this, '$type',
            {
                enumerable: true,
                configurable: true,
@@ -533,7 +570,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
             // Property: $capacity
             // Description: Gets the capacity associated with this list upon creation
-            Object.defineProperty(List.prototype, 'Capacity',
+            Object.defineProperty(this, 'Capacity',
            {
                enumerable: true,
                configurable: true,
@@ -553,7 +590,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             (function (counter) { while (counter >= 0) $CreateGetterSetter(List.prototype, counter--); })(Math.max(capacity, Math.min(65535, capacity * 2)));
             //And I bet before then I could even use Object.watch or a polyfill of it to enfore a pseudo 'missing_method' and then invoke this function... how fortuitist
 
-        } else if (!$DefinedProperties) {
+        } else {
             // Compatibility
             this.Capacity = capacity;
             this.$type = oType;

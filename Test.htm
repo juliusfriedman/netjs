@@ -94,6 +94,10 @@
                 //e = "index parameter out of range in List.Get"
             }
 
+            var aFirst = myList.FirstOrDefault(function (c) { return c.make === 'Nissan'; });
+
+            var aDefault = myList.FirstOrDefault(function (c) { c.make === 'Nissan'; }); //Accidently left the return off so there is an undefined result
+
             var selList = myList.Where("make == 'Honda'").OrderByDescending("model").Distinct(); //2 in Count
             var anotherList = myList.Where(function () { return this.make == 'Honda' }).OrderByDescending("model").Distinct(); //2 in Count
             var yetAnotherList = myList.Where(function (c) { return c.make == 'Honda' }).OrderByDescending("model").Distinct(); //2 in Count
