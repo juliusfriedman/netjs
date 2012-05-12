@@ -29,17 +29,39 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     // ===============  Static Members  =================================================
 
     var $List$Created = -1, // Id counter used to identify each List instance.
-        $List$Instances = {}, // Storage for each instance which has yet to be disposed.        
+        $List$Instances = {}; // Storage for each instance which has yet to be disposed.        
 
     // ===============  Private Methods  ====================================================
     //These methods will not be seen in a call of toString on the List constructor
 
+    function $Export(what, where) {
+        $Export.exported[what] = where;
+        where[what] = what;
+    }
+
+    $Export.exported = {};
+
+    $Export.remove = function (what) {
+        //Enumerate exported members
+        for (var t in $Export.exported)
+        //If there is a member with the same type name as what
+            if ($Export.exported.hasOwnProperty(t)) {
+                //Express the typename to get where it was exported to and delete it as well as the Export entry
+                delete ($Export.exported[t])[t]
+                delete $Export.exported[t];
+            }
+    }
+
     //Destructor Logic
-    $List$Dispose = (function (who, disposing) {
+    function $List$Dispose(who, disposing) {
         try {
 
-            //Ensure who is a List instance
             if (typeof who === 'number') who = $List$Instances[who];
+            //Ensure who is a List instance
+            if (!who) return;
+
+            //Empty inner array
+            who.Clear();
 
             //Determine if event was called
             disposing = disposing || this === window;
@@ -47,21 +69,25 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             //Remove instance from Type storage
             $List$Instances[who.$key] = null;
             delete $List$Instances[who.$key];
+            who = null;
+            delete who;
 
-            //Dispose Type in a closure
+            //If we are disposing then check for all instances to be disposed and remove the type
             if (disposing && Object.keys($List$Instances).length === 0) {
-                //Anonymously
-                (function () {
-                    //set a timeout for 0 seconds to dispose the List Type
-                    setTimeout((function () {
-                        List = null;
-                        return delete List;
-                    }), 0);
-                })();
+                //Remove exports
+                $Export.remove(List);
+                List = null;
+                $List$Created = null;
+                $List$Instances = null;
+                $CreateGetterSetter = null;
+                $Select = null;
+                $Validate = null;
+                $Default = null;
+                $List$Dispose = null;
             }
 
         } catch (_) { }
-    });
+    };
 
     // Method:  $Validate
     // Description:  Make sure that all objects added to the List are of the same type.
@@ -123,7 +149,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     }
 
     //Array like Getter/Setter Logic, creates a getter for the List to access the inner array at the given index
-    $CreateGetterSetter = function (list, index) {
+    function $CreateGetterSetter(list, index) {
         try {
             if (Object.defineProperty) {
                 Object.defineProperty(list, index, {
@@ -505,27 +531,23 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             capacity += arguments[0].length;
             oType = arguments[0].$type; // Set the type of the List from the given
             listArray = arguments[0].array; // Set the inner array of the List from the given
-        } else if (arguments[0] && arguments[0].length) { //If there is a type given it may be contained in an array which is to be used as the interal array..       
-            try {
-                capacity += arguments[0].length;
-                oType = arguments[0][0].constructor; // Set type of the List from the first element in the given array
-                arguments[1] = arguments[1] || arguments[0]; // Make a new argument incase one is not given which should be the array given. This will be used after AddRange is constructed to verify each given item complies with the List logic.
-            } catch (_) { }
-        };
-
+        } else if (arguments[0] && arguments[0].length) try { //If there is a type given it may be contained in an array which is to be used as the interal array..       
+            capacity += arguments[0].length;
+            oType = arguments[0][0].constructor; // Set type of the List from the first element in the given array
+            arguments[1] = arguments[1] || arguments[0]; // Make a new argument incase one is not given which should be the array given. This will be used after AddRange is constructed to verify each given item complies with the List logic.
+        } catch (_) { }
+        
         //If there is an array given then each member of the array must be added and verified
         if (arguments[1] && arguments[1].length) {
-            if (capacity < arguments[1].length) capacity += arguments[1].length;
-            try {
-                this.AddRange(arguments[1]);
-            } catch (e) { throw e; }
+            if (capacity <= arguments[1].length) capacity += arguments[1].length;
+            try { this.AddRange(arguments[1]); } catch (e) { throw e; }
         }
 
         //Cleanup instance prototype
         for (var p in this) if (!this.hasOwnProperty(p)) delete this.p;
 
         //Add event for destructor in executed closure
-        window.addEventListener('unload', function (self) { $List$Dispose(self, true); } (this));
+        window.addEventListener('unload', function () { $List$Dispose(key, true); });
 
         // ===============  Public Properties  =================================================
 
@@ -610,6 +632,8 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
     }
 
+    List.toString = function () { return /*'[object Class */'List'/*]'*/; };
+
     // Method: indexOf
     // Description: adds logic to retrieve the index of an element from an array if present, otherwise -1
     if (!Array.prototype.indexOf) {
@@ -654,7 +678,10 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         Object.freeze = function (object) { };
     }
 
-    //Export and Freeze List to the window namespace
-    Object.freeze(window.List = List);
+    //Freeze List
+    Object.freeze(List);
+
+    //Export
+    $Export(List, window);
 
 })();
