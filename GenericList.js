@@ -36,6 +36,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     function $ProcessLambda(clause) {
         if ($IsLambda(clause)) {
             var expr = clause.match(/^[(\s]*([^()]*?)[)\s]*=>(.*)/);
+            expr[2] = expr[2].replace('select', '');
             return new Function(expr[1], "return (" + expr[2] + ")");
         }
         return clause;
@@ -65,7 +66,10 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                 try { result = (query(tEl)); }
                 catch (_) { result = false; }
             } //String form
-            else if (lambda) result = $ProcessLambda(query).apply(tEl, [tEl]);
+            else if (lambda) {
+                result = $ProcessLambda(query).apply(tEl, [tEl]);
+                if (result) return selectList.Add(result); //Maybe a new object
+            }
             else {
                 try { result = (new Function('_', 'with(_) return ' + query)(tEl)); } //with (tEl) result = eval(query);
                 catch (_) { result = false; }
@@ -163,7 +167,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         if (!list.$type) return;
         else if (object.constructor !== list.$type && !object.constructor instanceof list.$type)
             throw "Only one object type is allowed in a list";
-    }    
+    }
 
     //Array like Getter/Setter Logic, creates a getter for the List to access the inner array at the given index
     function $CreateGetterSetter(list, index) {

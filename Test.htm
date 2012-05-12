@@ -101,6 +101,10 @@
 
             var anotherStringForm = myList.FirstOrDefault('c => c.make == "Nissan"'); // 1 in Count
 
+            anotherStringForm = myList.FirstOrDefault('(c) => c.make == "Nissan"'); // 1 in Count
+
+            anotherStringForm = myList.Where("(c) => c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default"); // 4 in Count, 1 Acura and 3 Default Cars
+
             var aDefault = myList.FirstOrDefault(function (c) { c.make === 'Nissan'; }); //Accidently left the return off so there is an undefined result
 
             var selList = myList.Where("make == 'Honda'").OrderByDescending("model").Distinct(); //2 in Count
