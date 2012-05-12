@@ -9,11 +9,14 @@
 
     <script type="text/javascript">
 
-        function Car(make, model)
-        {
+        function Car(make, model) {
+            //Could force the return of $default here or return null/undefined if make or model is missing
             this.make = make;
             this.model = model;
         }
+
+        //Specify default value, could be anything
+        Car.$default = new Car();
 
         function except(ex) { alert(+ex ? 'Message: ' + ex : this.caller.toString()); }
 
@@ -91,7 +94,7 @@
                 var testGetterException = myList[9];
             }
             catch (_) {
-                //e = "index parameter out of range in List.Get"
+                //_ = "index parameter out of range in List.Get"
             }
 
             var aFirst = myList.FirstOrDefault(function (c) { return c.make === 'Nissan'; });

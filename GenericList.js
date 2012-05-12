@@ -107,7 +107,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     // Method:  $Default
     // Description:  Returns the default value for the list
     function $Default(list) {
-        try { return new list.$type(); }
+        try { return list.$type.$default || new list.$type(); }
         catch (_) { return null; }
     }
 
