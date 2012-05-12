@@ -521,7 +521,15 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         // Description: etermines whether every element in the List matches the conditions defined by the specified predicate.
         this.TrueForAll = function (query) { return query ? listArray.length === this.Where(query).Count() : undefined; }
 
-        // Extension Methods        
+        // Extension Methods    
+
+        // Method: Sum
+        // Description: For each element given the query a value is summed and the total is returned from expressing the element to the clause
+        this.Sum = function (query) { var sum = undefined; this.ForEach(function (tEl) { sum += query(tEL); }); return sum; }
+
+        // Method: Sum
+        // Description: For each element given the query a value is summed and the total is returned / by the amount of conforming items from expressing the element to the caluse
+        this.Average = function (query) { var sum = undefined, d = 1; this.ForEach(function (tEl) { ++d; sum += query(tEL); }); return sum / d; }
 
         // Method:  Any
         // Description:  returns true if any element in the list was matched by the query. (Returns false if there 0 items in the List).
