@@ -50,7 +50,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     //              var anotherList = $Select(this,function(){ return this.make === 'Honda' });
     //              var yetAnotherList = $Select(this,function(c){ return c.make === 'Honda' });
     //              var  anotherStringForm = myList.Where("(c) => c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default");
-    //              var  yetAnotherStringForm = myList.Where(function (c) { return c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default });
+    //              var  yetAnotherForm = myList.Where(function (c) { return c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default });
     function $Select(list, query) {
         if (!query) return this;
         var bind = (query instanceof Function) && query.toString().indexOf('this') !== -1,
