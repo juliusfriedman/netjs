@@ -58,25 +58,21 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         //possibly need to bind query on this if query instanceof function
         list.array.forEach(function (tEl) {
             var result = undefined;
-            if (!lambda && bind) {//(){ this[] } form
-                try { result = (query.bind(tEl)()); }
-                catch (_) { result = false; }
-            } //(o){ o[] } form
-            else if (!lambda && pass) {
-                try { result = (query(tEl)); }
-                catch (_) { result = false; }
-            } //String form
-            else if (lambda) {
-                result = $ProcessLambda(query).apply(tEl, [tEl]);
-                if (result) return selectList.Add(result); //Maybe a new object
+            try {
+                result = !lambda && bind ? //Bind the query if there is no lambda
+                    (query.bind(tEl)()) :
+                        !lambda && pass ? (query(tEl)) : //Pass the element to the query if there is no lambda
+                            lambda ? $ProcessLambda(query).apply(tEl, [tEl]) : //Process the lambda if present
+                                (new Function('_', 'with(_) return ' + query)(tEl)); //Fallback to with method
             }
-            else {
-                try { result = (new Function('_', 'with(_) return ' + query)(tEl)); } //with (tEl) result = eval(query);
-                catch (_) { result = false; }
-            }
-            if (result) selectList.Add(tEl);
+            catch (_) { result = false; }
+            if (result) selectList.Add( lambda ? result : tEl);
         });
         return selectList;
+
+
+
+
     }
 
     // Method:  $Default

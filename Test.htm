@@ -9,6 +9,29 @@
 
     <script type="text/javascript">
 
+        //Utility Functions
+        function except(ex) { alert(+ex ? 'Message: ' + ex : this.caller.toString()); }
+
+        function ObjectKeysEqual(a, b) {
+            for (var p in a) if (a.hasOwnProperty(p) && !a[p] === b[p]) return false;                
+            return true;
+        }
+
+        function Verify(result, expected) {
+            if (!result.forEach || !result || !isNaN(result) || (true === expected || false === expected)) return result === expected || ObjectKeysEqual(result, expected);
+            if (expected.length) {
+                result = Object.keys(result);
+                expected = Object.keys(expected);
+                if (result.length !== expected.length) return false;
+            }
+            try { result.forEach(function (o, i) { if (o !== expected[i]) throw Error; }); }
+            catch (_) { return false; }
+            return true;
+        }
+
+        //Classes
+
+        //Define a class of car which we will store in the list later on.
         function Car(make, model) {
             //Could force the return of $default here or return null/undefined if make or model is missing
             this.make = make;
@@ -18,19 +41,7 @@
         //Specify default value, could be anything
         Car.$default = new Car();
 
-        function except(ex) { alert(+ex ? 'Message: ' + ex : this.caller.toString()); }
-
-        function Verify(result, expected){
-            if(!result || !isNaN(result) || (true === expected || false === expected)) return result === expected;
-            if(expected.length){
-                result = Object.keys(result);
-                expected = Object.keys(expected);
-                if(result.length !== expected.length) return false;
-            }
-            try{ result.forEach(function(o, i){ if(o !== expected[i]) throw Error; }); }
-            catch(_) { return false;}
-            return true;
-        }
+       //Unit Tests
 
         function TestReflection() {
             var myList = new List(),
@@ -104,6 +115,8 @@
             anotherStringForm = myList.FirstOrDefault('(c) => c.make == "Nissan"'); // 1 in Count
 
             anotherStringForm = myList.Where("(c) => c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default"); // 4 in Count, 1 Acura and 3 Default Cars
+
+            if (!Verify(anotherStringForm[1], new Car('Acura', 'TL'))) alert('Bug');
 
             var aDefault = myList.FirstOrDefault(function (c) { c.make === 'Nissan'; }); //Accidently left the return off so there is an undefined result
 
