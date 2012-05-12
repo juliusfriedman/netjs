@@ -119,6 +119,10 @@
 
             if (!Verify(anotherStringForm[1], new Car('Acura', 'TL'))) alert('Bug');
 
+            anotherStringForm = myList.Where(function (c) { return c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default });  // 4 in Count, 1 Acura and 3 Default Cars
+
+            if (!Verify(anotherStringForm[1], new Car('Acura', 'TL'))) alert('Bug');
+
             var aDefault = myList.FirstOrDefault(function (c) { c.make === 'Nissan'; }); //Accidently left the return off so there is an undefined result
 
             var selList = myList.Where("make == 'Honda'").OrderByDescending("model").Distinct(); //2 in Count

@@ -66,7 +66,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                                 (new Function('_', 'with(_) return ' + query)(tEl)); //Fallback to with method
             }
             catch (_) { result = false; }
-            if (result) selectList.Add( lambda ? result : tEl);
+            if (result) selectList.Add(lambda || result instanceof list.$type ? result : tEl);
         });
         return selectList;
 
@@ -623,7 +623,15 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                    return capacity;
                },
                set: function (newCapacity) {
-                   //Todo                
+                   if (!newCapacity || isNaN(newCapacity) || newCapacity === capacity) return;
+                   if (newCapacity > capacity) {
+                    //Size Increase
+                    //Todo
+                   } else {
+                    //Size Decrease
+                    //Todo
+                   }
+                   capacity = newCapacity;
                }
            });
 
@@ -671,9 +679,8 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     // -- Borrowed from MooTools --
     if (!Array.prototype.forEach) {
         Array.prototype.forEach = function (fn, bind) {
-            for (var i = 0, l = this.length; i < l; ++i) {
+            for (var i = 0, l = this.length; i < l; ++i)
                 if (i in this) fn.call(bind, this[i], i, this);
-            }
         }
     }
 
