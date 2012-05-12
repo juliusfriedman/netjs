@@ -3,14 +3,18 @@
     return Function.prototype.cast ? undefined : (function () {
 
         //Operator Overloading
-        function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + constructor + ' ' + this.$abstract.toString() + ']'; }
+
+        //The abstract class constructor
+        function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + JSON.stringify(constructor) + ', ' + this.$abstract.toString() + ']'; }
 
         //http://www.golimojo.com/etc/js-subclass.html
         //Modified for netjs by Julius Friedman
         //Description: Helps interpreterd code to function correctly after compile with respect to instanceof
         function subclass(constructor, derivedConstructor) {
 
-            //Possibly should augment derived to ensure it is not subclassed on accident again
+            var linkedName = derivedConstructor + '_' + constructor;
+
+            if (subclass.linker[linkedName] && subclass.linker[linkedName].constructor === constructor) return derivedConstructor;
 
             if (constructor.$abstract && !derivedConstructor) abstractConstructor(constructor);
 
@@ -23,8 +27,12 @@
 
             constructor.prototype = prototypeObject;
 
+            subclass.linker[linkedName] = prototypeObject;
+
             return derivedConstructor;
         }
+
+        subclass.linker = {};
 
         //The default constructor of the soon to be pseudo Class / Type system
         //The reason this is here is because constructors must return void this we cannot return the apply call to the top of the stack with the defaultConstructor

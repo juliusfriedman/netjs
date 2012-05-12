@@ -26,7 +26,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
 /*namespace GenericList*/(function () {
 
-    // ===============  LINQ Utilities  =================================================
+    // ===============  LINQ Utilities (Private)  =================================================
 
     function $IsLambda(clause) { return (clause.toString().indexOf("=>") > -1); }
 
@@ -49,6 +49,8 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     //              var selList = $Select(this,"make == 'Honda'").
     //              var anotherList = $Select(this,function(){ return this.make === 'Honda' });
     //              var yetAnotherList = $Select(this,function(c){ return c.make === 'Honda' });
+    //              var  anotherStringForm = myList.Where("(c) => c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default");
+    //              var  yetAnotherStringForm = myList.Where(function (c) { return c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default });
     function $Select(list, query) {
         if (!query) return this;
         var bind = (query instanceof Function) && query.toString().indexOf('this') !== -1,
@@ -63,16 +65,13 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                     (query.bind(tEl)()) :
                         !lambda && pass ? (query(tEl)) : //Pass the element to the query if there is no lambda
                             lambda ? $ProcessLambda(query).apply(tEl, [tEl]) : //Process the lambda if present
-                                (new Function('_', 'with(_) return ' + query)(tEl)); //Fallback to with method
+                                (new Function('_', 'with(_) return (' + query + ')')(tEl)); //Fallback to with method
             }
             catch (_) { result = false; }
+            //If there is a result add it by determining if there was a lambda or the result is an instance of the list type.
             if (result) selectList.Add(lambda || result instanceof list.$type ? result : tEl);
         });
         return selectList;
-
-
-
-
     }
 
     // Method:  $Default
@@ -81,6 +80,10 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         try { return list.$type.$default || new list.$type(); }
         catch (_) { return null; }
     }
+
+    //Alias export
+    window.Default = window.$Default = window.$default = $default = $Default;
+
 
     // Method:  $GenericSort
     // Description:  Sort comparison function using an object property name.  Pass this function to
@@ -151,9 +154,11 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                 $Validate = null;
                 $Default = null;
                 $List$Dispose = null;
+                $IsLambda = null;
+                $ProcessLambda = null;
             }
 
-        } catch (_) { }
+        } catch (_) { console.log(_); }
     };
 
     // Method:  $Validate
@@ -625,11 +630,11 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                set: function (newCapacity) {
                    if (!newCapacity || isNaN(newCapacity) || newCapacity === capacity) return;
                    if (newCapacity > capacity) {
-                    //Size Increase
-                    //Todo
+                       //Size Increase
+                       //Todo
                    } else {
-                    //Size Decrease
-                    //Todo
+                       //Size Decrease
+                       //Todo
                    }
                    capacity = newCapacity;
                }
