@@ -541,7 +541,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         // Method:  Random
         // Description:  Returns a random element which matches the given query or a random element from the List if no query is given
-        this.Random = function (query) { return query ? this.Where(query).ElementAt(Math.floor((Math.random() * listArray.length) + 0)) : this.ElementAt(Math.floor((Math.random() * listArray.length) + 0)); }
+        this.Random = function (query) { var rand = Math.floor((Math.random() * listArray.length) + 0); return query ? this.Where(query).ElementAt(rand) : this.ElementAt(rand); }
 
         //Copy constructor (utilized if first parameter in constructor is a List instance
         if (arguments[0] && arguments[0] instanceof List) {
