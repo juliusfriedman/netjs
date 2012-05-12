@@ -3,7 +3,7 @@
     return Function.prototype.cast ? undefined : (function () {
 
         //Operator Overloading
-        function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + constructor; }
+        function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + constructor + ' ' + this.$abstract.toString() + ']'; }
 
         //http://www.golimojo.com/etc/js-subclass.html
         //Modified for netjs by Julius Friedman
@@ -28,7 +28,10 @@
 
         //The default constructor of the soon to be pseudo Class / Type system
         //The reason this is here is because constructors must return void this we cannot return the apply call to the top of the stack with the defaultConstructor
-        function applyInstance(constructor, derivedConstructor) { return constructor.apply(derivedConstructor); }
+        function applyInstance(constructor, derivedConstructor) {
+            try { return constructor.apply(derivedConstructor); }
+            catch (_) { return new constructor(); }
+        }
 
         //The default constructor of the soon to be pseudo Class / Type system
         function defaultConstructor(instance) {
@@ -53,7 +56,10 @@
 
         //Pseudo Classes
         var baseClass = defaultConstructor; //(this);
+        baseClass.constructor = abstractConstructor;
         baseClass.$abstract = true;
+
+        baseClass.toString = function () { return /*'[object Class */'baseClass'/*]'*/; };
 
         //The Class which represents classes
         //The Mother of All Mother Functions
@@ -62,7 +68,7 @@
         //Featuring more comments than code
         //And none of them are even relevant...
         //NOW I JUST HAVE TO FIGURE OUT HOW TO GET CONSTRUCTOR CHAINING TO WORK!!!! UGH!
-        
+
         //If the base class is abstract return the reference to it otherwise return the reference to the result of subclass given this instance and the baseClass
         function Class(base) { return base.$abstract ? base : subclass(this, base); }
 
@@ -85,6 +91,8 @@
             }
 
             this.cast = Function.prototype.cast;
+
+            this.toString = function () { return /*'[object Class */'baseClass'/*]'*/; };
         }
 
         //Ensure instanceof works correctly
@@ -105,6 +113,8 @@
                 if (this instanceof baseClass) return myInt;
                 return myString;
             }
+
+            this.toString = function () { return /*'[object Class */'anotherClass'/*]'*/; };
 
         }
 
