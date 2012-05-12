@@ -2,7 +2,28 @@
 
     return Function.prototype.cast ? undefined : (function () {
 
-        //Operator Overloading
+        //.Net JavaScript
+
+        function $Export(what, where, as) {
+            as = as || what;
+            $Export.exported[what] = as;
+            where[as] = what;
+        }
+
+        $Export.exported = {};
+
+        $Export.remove = function (what) {
+            //Enumerate exported members
+            for (var t in $Export.exported)
+            //If there is a member with the same type name as what
+                if ($Export.exported.hasOwnProperty(t)) {
+                    //Express the typename to get where it was exported to and delete it as well as the Export entry
+                    delete ($Export.exported[t])[t]
+                    delete $Export.exported[t];
+                }
+        }
+
+        $Export($Export, window, 'export');
 
         //The abstract class constructor
         function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + JSON.stringify(constructor) + ', ' + this.$abstract.toString() + ']'; }
@@ -41,6 +62,7 @@
             for (var t in subclass.linker) {
                 if (subclass.linker.hasOwnProperty(t)) {
                     if (subclass.linker[t] instanceof Function || typeof subclass.linker[t] === 'function') {
+                        $Export.remove(subclass.linker[t]);
                         subclass.linker[t] = eval('(subclass.linker[t]) = null')
                         delete subclass.linker[t];
                     } else {
@@ -48,6 +70,7 @@
                         try { z = subclass.linker[t].split('_^_'); }
                         catch (_) { z = subclass.linker[t]; }
                         for (var T in z) if (z.hasOwnProperty(T)) {
+                            $Export.remove(subclass.linker[t]);
                             z[T] = eval('z[T] = null');
                             delete z[T];
                             delete subclass.linker[t]

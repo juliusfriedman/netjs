@@ -77,8 +77,8 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     // Method:  $Default
     // Description:  Returns the default value for the list
     function $Default(list) {
-        try { return list.$type.$default || new list.$type(); }
-        catch (_) { return null; }
+        try { return '$default' in list.$type ? list.$type.$default : new list.$type(); } // Try to return the default of the type stored in the List or the result of a newly created type of the List type.
+        catch (_) { return null; } // Return null if the default value cannot be found for the or type cannot be created.
     }
 
     //Alias export
@@ -102,25 +102,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         $List$Instances = {}; // Storage for each instance which has yet to be disposed.        
 
     // ===============  Private Methods  ====================================================
-    //These methods will not be seen in a call of toString on the List constructor
-
-    function $Export(what, where) {
-        $Export.exported[what] = where;
-        where[what] = what;
-    }
-
-    $Export.exported = {};
-
-    $Export.remove = function (what) {
-        //Enumerate exported members
-        for (var t in $Export.exported)
-        //If there is a member with the same type name as what
-            if ($Export.exported.hasOwnProperty(t)) {
-                //Express the typename to get where it was exported to and delete it as well as the Export entry
-                delete ($Export.exported[t])[t]
-                delete $Export.exported[t];
-            }
-    }
+    //These methods will not be seen in a call of toString on the List constructor    
 
     //Destructor Logic
     function $List$Dispose(who, disposing) {
@@ -145,7 +127,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             //If we are disposing then check for all instances to be disposed and remove the type
             if (disposing && Object.keys($List$Instances).length === 0) {
                 //Remove exports
-                $Export.remove(List);
+                window.export.remove(List);
                 List = null;
                 $List$Created = null;
                 $List$Instances = null;
@@ -529,7 +511,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         // Method: Sum
         // Description: For each element given the query a value is summed and the total is returned / by the amount of conforming items from expressing the element to the caluse
-        this.Average = function (query) { var sum = undefined, d = 1; this.ForEach(function (tEl) { ++d; sum += query(tEL); }); return sum / d; }
+        this.Average = function (query) { var sum = undefined, dividend = 1; this.ForEach(function (tEl) { ++dividend; sum += query(tEL); }); return sum / dividend; }
 
         // Method:  Any
         // Description:  returns true if any element in the list was matched by the query. (Returns false if there 0 items in the List).
@@ -537,7 +519,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         // Method:  Single
         // Description:  Returns the first object in the list that meets the 'query' criteria or the default of the List type if no objects are found.
-        this.Single = function (query, fromDefault) { fromDefault = fromDefault || false; return query ? this.FirstOrDefault(query) : fromDefault ? $Default(this) : null; }
+        this.Single = function (query, fromDefault) { return query ? this.FirstOrDefault(query) : fromDefault ? $Default(this) : null; }
 
         // Method:  SingleOrDefault
         // Description:  Returns the first object in the list that meets the 'query' criteria or null if no objects are found.
@@ -767,6 +749,6 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     Object.freeze(List);
 
     //Export
-    $Export(List, window);
+    window.export(List, window);
 
 })();
