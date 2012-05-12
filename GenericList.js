@@ -202,7 +202,8 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         // ===============  Private Attributes  =================================================
 
-        var key = ++$List$Created,  // Identify each List instance with an incremented Id.
+        var base = new Class(IEnumerable),
+        key = ++$List$Created,  // Identify each List instance with an incremented Id.
         capacity = arguments[2] || 10,        // Used to create getters and setters until I have worked out a different way
         oType = undefined,      // Used to ensure that all objects added to the list are of the same type.
         $containsLastResult = undefined, //Storage pointer for the last result of Contains call
@@ -383,11 +384,24 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         // Method:  FirstOrDefault
         // Description:  Return the first object in the list that meets the 'query' criteria or null if no objects are found.        
-        this.FirstOrDefault = function (query/*, last*/) {
+        this.FirstOrDefault = function (query/*, last, fromDefault*/) {
             var list = $Select(this, query),
-            last = arguments[1] || false;
-            return list && list.array.length ? list.array[last ? listArray.length - 1 : 0] : $Default(this);
+            last = arguments[1] || false,
+            fromDefault = arguments[2] || true;
+            return list && list.array.length ? list.array[last ? listArray.length - 1 : 0] : fromDefault ? $Default(this) : null;
         }
+
+        // Method:  First
+        // Description:  returns the first element in the List or null if nothing is contained.
+        this.First = function (query) { return this.FirstOrDefault(query, false, false); }
+
+        // Method:  Last
+        // Description:  returns the last element in the List or null if nothing is contained
+        this.Last = function (query) { return this.FirstOrDefault(query, true, false); }
+
+        // Method:  LastOrDefault
+        // Description:  Return the last object in the list that meets the 'query' criteria or the default of the List type if no objects are found.
+        this.LastOrDefault = function (query) { return this.FirstOrDefault(query, true, true); }
 
         // Method:  Count
         // Description:  Return the number of elements in the list or optionally the number of elements which are equal to the object given
@@ -507,28 +521,19 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         // Description: etermines whether every element in the List matches the conditions defined by the specified predicate.
         this.TrueForAll = function (query) { return query ? listArray.length === this.Where(query).Count() : undefined; }
 
-        // Extension Methods
-
-        // Method:  First
-        // Description:  returns the first element in the List or null if nothing is contained
-        this.First = function (query) { return query ? this.FirstOrDefault(query) : listArray.length ? listArray[0] : null; }
-
-        // Method:  Last
-        // Description:  returns the last element in the List or null if nothing is contained
-        this.Last = function (query) { return query ? this.LastOrDefault(query) : listArray.length ? listArray[listArray.length - 1] : null; }
+        // Extension Methods        
 
         // Method:  Any
-        // Description:  returns true on the first element in the List which meets the given query.
-        this.Any = function (query) { return $Select(this, query).Count() !== 0; }
-
-        // Method:  LastOrDefault
-        // Description:  Return the last object in the list that meets the 'query' criteria or null if no objects are found.
-        this.LastOrDefault = function (query) { return this.FirstOrDefault(query, true); }
-        //this.LastOrDefault = function (query) { return query ? this.FirstOrDefault(query, true) : $Default(this); }
+        // Description:  returns true if any element in the list was matched by the query. (Returns false if there 0 items in the List).
+        this.Any = function (query) { return listArray.length > 0 && $Select(this, query).Count() > 0; }
 
         // Method:  Single
+        // Description:  Returns the first object in the list that meets the 'query' criteria or the default of the List type if no objects are found.
+        this.Single = function (query, fromDefault) { fromDefault = fromDefault || false; return query ? this.FirstOrDefault(query) : fromDefault ? $Default(this) : null; }
+
+        // Method:  SingleOrDefault
         // Description:  Returns the first object in the list that meets the 'query' criteria or null if no objects are found.
-        this.Single = function (query) { return query ? this.FirstOrDefault(query) : null; }
+        this.SingleOrDefault = function (query) { return this.Single(query, true); }
 
         // Method:  Single
         // Description:  Bypasses elements in a sequence as long as a specified condition is true and then returns the remaining elements. The element's index is used in the logic of the predicate function.
@@ -706,6 +711,52 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     if (!Object.freeze) {
         Object.freeze = function (object) { };
     }
+
+    var IEnumerable = function (dataItems) {
+        if (!(this instanceof IEnumerable)) {
+            return new IEnumerable(dataItems);
+        }
+
+        this.clauses = new Array();
+        this.source = dataItems;
+    };
+
+
+    IEnumerable.prototype = {
+        getNext: function () {
+            var next;
+
+            var clauses = this.clauses;
+            this.source.some(function (element, index, array) {
+                if (clauses[0](element, index, array)) { // Generic predicate
+                    next = element;
+                    return true;
+                }
+                return false;
+            });
+
+            return next;
+        },
+
+        push: function (clause) {
+            this.clauses.push(clause);
+            return this;
+        },
+
+        //$abstract: true,
+
+        toString: function () { return 'IEnumerable'; }
+    };
+
+    IEnumerable.$abstract = true;
+
+
+    console.log(IEnumerable([2, 3, 5]).push(function (element, index, array) {
+        return index > 1 ? true : false;
+    }).getNext());
+
+
+    subclass(IEnumerable, List);
 
     //Freeze List
     Object.freeze(List);

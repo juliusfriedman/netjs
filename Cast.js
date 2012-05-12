@@ -34,6 +34,8 @@
 
         subclass.linker = {};
 
+        window.subclass = subclass;
+
         //The default constructor of the soon to be pseudo Class / Type system
         //The reason this is here is because constructors must return void this we cannot return the apply call to the top of the stack with the defaultConstructor
         function applyInstance(constructor, derivedConstructor) {
@@ -64,9 +66,8 @@
 
         //Pseudo Classes
         var baseClass = defaultConstructor; //(this);
-        baseClass.constructor = abstractConstructor;
+        baseClass.$base = baseClass.constructor = abstractConstructor;
         baseClass.$abstract = true;
-
         baseClass.toString = function () { return /*'[object Class */'baseClass'/*]'*/; };
 
         //The Class which represents classes
@@ -79,6 +80,8 @@
 
         //If the base class is abstract return the reference to it otherwise return the reference to the result of subclass given this instance and the baseClass
         function Class(base) { return base.$abstract ? base : subclass(this, base); }
+
+        window.Class = Class;
 
         //Classes for testing
 
