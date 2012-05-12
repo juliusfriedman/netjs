@@ -87,12 +87,18 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         //possibly need to bind query on this if query instanceof function
         list.array.forEach(function (tEl) {
             var result = undefined;
-            if (bind) result = (query.bind(tEl)());
+            if (bind) {//(){ this[] } form
+                try { result = (query.bind(tEl)()); }
+                catch (_) { result = false; }
+            } //(o){ o[] } form
             else if (pass) {
                 try { result = (query(tEl)); }
                 catch (_) { result = false; }
+            } //String form
+            else {
+                try { result = (new Function('_', 'with(_) return ' + query)(tEl)); } //with (tEl) result = eval(query);
+                catch (_) { result = false; }
             }
-            else with (tEl) result = eval(query);
             if (result) selectList.Add(tEl);
         });
         return selectList;
@@ -587,8 +593,8 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             //The alternative would be to not freeze the object and Augment it on Insert or Add
             //The other option would be to implement Capacity and when the List resizes define new getters.
             //This will only be until we have Proxy, then we can even seal this Instance and referece the proxy.
-           (function (self, counter) { while (counter >= 0) $CreateGetterSetter(self, --counter); })(this, capacity * 2);
-           
+            (function (self, counter) { while (counter >= 0) $CreateGetterSetter(self, --counter); })(this, capacity * 2);
+
             //And I bet before then I could even use Object.watch or a polyfill of it to enfore a pseudo 'missing_method' and then invoke this function... how fortuitist
 
         } else {
