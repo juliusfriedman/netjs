@@ -125,11 +125,11 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                     //enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
                     //configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
                     get: function () {
-                        if (index < 0 || index > this.array.length) throw "index parameter out of range in List.Get";
+                        if (index < 0 || index >= this.array.length) throw "index parameter out of range in List.Get";
                         return this.array[index];
                     },
                     set: function (value) {
-                        if (index < 0 || index > this.array.length) throw "index parameter out of range in List.Set";
+                        if (index < 0 || index >= this.array.length) throw "index parameter out of range in List.Set";
                         $Validate(list, value);
                         this.array[index] = value;
                     }
@@ -587,7 +587,8 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             //The alternative would be to not freeze the object and Augment it on Insert or Add
             //The other option would be to implement Capacity and when the List resizes define new getters.
             //This will only be until we have Proxy, then we can even seal this Instance and referece the proxy.
-            (function (counter) { while (counter >= 0) $CreateGetterSetter(List.prototype, counter--); })(Math.max(capacity, Math.min(65535, capacity * 2)));
+           (function (self, counter) { while (counter >= 0) $CreateGetterSetter(self, --counter); })(this, capacity * 2);
+           
             //And I bet before then I could even use Object.watch or a polyfill of it to enfore a pseudo 'missing_method' and then invoke this function... how fortuitist
 
         } else {
