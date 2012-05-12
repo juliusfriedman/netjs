@@ -99,6 +99,8 @@
 
             var aFirst = myList.FirstOrDefault(function (c) { return c.make === 'Nissan'; });
 
+            var anotherStringForm = myList.FirstOrDefault('c => c.make == "Nissan"'); // 1 in Count
+
             var aDefault = myList.FirstOrDefault(function (c) { c.make === 'Nissan'; }); //Accidently left the return off so there is an undefined result
 
             var selList = myList.Where("make == 'Honda'").OrderByDescending("model").Distinct(); //2 in Count

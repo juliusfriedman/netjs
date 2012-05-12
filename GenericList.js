@@ -26,6 +26,73 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
 /*namespace GenericList*/(function () {
 
+    // ===============  LINQ Utilities  =================================================
+
+    function $IsLambda(clause) { return (clause.toString().indexOf("=>") > -1); }
+
+    // This piece of "handling" C#-style Lambda expression was borrowed from:
+    // linq.js - LINQ for JavaScript Library - http://jslinq.codeplex.com
+    // THANK!!
+    function $ProcessLambda(clause) {
+        if ($IsLambda(clause)) {
+            var expr = clause.match(/^[(\s]*([^()]*?)[)\s]*=>(.*)/);
+            return new Function(expr[1], "return (" + expr[2] + ")");
+        }
+        return clause;
+    }
+
+    // Method:  $Select
+    // Description:  Return a copy of this List object with only the elements that meet the criteria
+    //               as defined by the 'query' parameter.
+    // Usage Example:  
+    //              var selList = $Select(this,"make == 'Honda'").
+    //              var anotherList = $Select(this,function(){ return this.make === 'Honda' });
+    //              var yetAnotherList = $Select(this,function(c){ return c.make === 'Honda' });
+    function $Select(list, query) {
+        if (!query) return this;
+        var bind = (query instanceof Function) && query.toString().indexOf('this') !== -1,
+            pass = !bind && typeof query !== 'string',
+            lambda = $IsLambda(query);
+        selectList = new List();
+        //possibly need to bind query on this if query instanceof function
+        list.array.forEach(function (tEl) {
+            var result = undefined;
+            if (!lambda && bind) {//(){ this[] } form
+                try { result = (query.bind(tEl)()); }
+                catch (_) { result = false; }
+            } //(o){ o[] } form
+            else if (!lambda && pass) {
+                try { result = (query(tEl)); }
+                catch (_) { result = false; }
+            } //String form
+            else if (lambda) result = $ProcessLambda(query).apply(tEl, [tEl]);
+            else {
+                try { result = (new Function('_', 'with(_) return ' + query)(tEl)); } //with (tEl) result = eval(query);
+                catch (_) { result = false; }
+            }
+            if (result) selectList.Add(tEl);
+        });
+        return selectList;
+    }
+
+    // Method:  $Default
+    // Description:  Returns the default value for the list
+    function $Default(list) {
+        try { return list.$type.$default || new list.$type(); }
+        catch (_) { return null; }
+    }
+
+    // Method:  $GenericSort
+    // Description:  Sort comparison function using an object property name.  Pass this function to
+    //               the Javascript sort function to sort the list by a given property name.
+    // Usage Example:
+    //              var sortedList = listArray.sort($GenericSort('model'));
+    function $GenericSort(property) {
+        return function (a, b) {
+            return (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+        }
+    }
+
     // ===============  Static Members  =================================================
 
     var $List$Created = -1, // Id counter used to identify each List instance.
@@ -96,57 +163,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         if (!list.$type) return;
         else if (object.constructor !== list.$type && !object.constructor instanceof list.$type)
             throw "Only one object type is allowed in a list";
-    }
-
-    // Method:  $Select
-    // Description:  Return a copy of this List object with only the elements that meet the criteria
-    //               as defined by the 'query' parameter.
-    // Usage Example:  
-    //              var selList = $Select(this,"make == 'Honda'").
-    //              var anotherList = $Select(this,function(){ return this.make === 'Honda' });
-    //              var yetAnotherList = $Select(this,function(c){ return c.make === 'Honda' });
-    function $Select(list, query) {
-        if (!query) return this;
-        var bind = (query instanceof Function) && query.toString().indexOf('this') !== -1,
-            pass = !bind && typeof query !== 'string';
-        selectList = new List();
-        //possibly need to bind query on this if query instanceof function
-        list.array.forEach(function (tEl) {
-            var result = undefined;
-            if (bind) {//(){ this[] } form
-                try { result = (query.bind(tEl)()); }
-                catch (_) { result = false; }
-            } //(o){ o[] } form
-            else if (pass) {
-                try { result = (query(tEl)); }
-                catch (_) { result = false; }
-            } //String form
-            else {
-                try { result = (new Function('_', 'with(_) return ' + query)(tEl)); } //with (tEl) result = eval(query);
-                catch (_) { result = false; }
-            }
-            if (result) selectList.Add(tEl);
-        });
-        return selectList;
-    }
-
-    // Method:  $Default
-    // Description:  Returns the default value for the list
-    function $Default(list) {
-        try { return list.$type.$default || new list.$type(); }
-        catch (_) { return null; }
-    }
-
-    // Method:  $GenericSort
-    // Description:  Sort comparison function using an object property name.  Pass this function to
-    //               the Javascript sort function to sort the list by a given property name.
-    // Usage Example:
-    //              var sortedList = listArray.sort($GenericSort('model'));
-    function $GenericSort(property) {
-        return function (a, b) {
-            return (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
-        }
-    }
+    }    
 
     //Array like Getter/Setter Logic, creates a getter for the List to access the inner array at the given index
     function $CreateGetterSetter(list, index) {
@@ -536,7 +553,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             oType = arguments[0][0].constructor; // Set type of the List from the first element in the given array
             arguments[1] = arguments[1] || arguments[0]; // Make a new argument incase one is not given which should be the array given. This will be used after AddRange is constructed to verify each given item complies with the List logic.
         } catch (_) { }
-        
+
         //If there is an array given then each member of the array must be added and verified
         if (arguments[1] && arguments[1].length) {
             if (capacity <= arguments[1].length) capacity += arguments[1].length;
