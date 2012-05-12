@@ -741,15 +741,12 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         push: function (clause) {
             this.clauses.push(clause);
             return this;
-        },
-
-        //$abstract: true,
-
-        toString: function () { return 'IEnumerable'; }
+        }
     };
 
-    IEnumerable.$abstract = true;
+    IEnumerable.toString = function () { return 'IEnumerable'; }
 
+    IEnumerable.$abstract = true;
 
     console.log(IEnumerable([2, 3, 5]).push(function (element, index, array) {
         return index > 1 ? true : false;

@@ -12,22 +12,23 @@
         //Description: Helps interpreterd code to function correctly after compile with respect to instanceof
         function subclass(constructor, derivedConstructor) {
 
-            var linkedName = derivedConstructor + '_' + constructor;
+            var linkedName = '_type_' + derivedConstructor.toString() + '_^_' + constructor.toString();
 
             if (subclass.linker[linkedName] && subclass.linker[linkedName].constructor === constructor) return derivedConstructor;
 
             if (constructor.$abstract && !derivedConstructor) abstractConstructor(constructor);
 
-            function surrogateConstructor() { constructor.apply(derivedConstructor); }
+            var surrogateConstructor = subclass.linker['_ctor_' + linkedName + '_^_SurrogateConstructor'] = function () { constructor.apply(derivedConstructor); }
+
+            //Todo
+            //Check for Disposable and implement unload?
 
             surrogateConstructor.prototype = derivedConstructor.prototype;
 
-            var prototypeObject = new surrogateConstructor();
+            var prototypeObject = subclass.linker[linkedName] = new surrogateConstructor();
             prototypeObject.constructor = constructor;
 
             constructor.prototype = prototypeObject;
-
-            subclass.linker[linkedName] = prototypeObject;
 
             return derivedConstructor;
         }
@@ -35,6 +36,31 @@
         subclass.linker = {};
 
         window.subclass = subclass;
+
+        window.addEventListener('unload', function () {
+            for (var t in subclass.linker) {
+                if (subclass.linker.hasOwnProperty(t)) {
+                    if (subclass.linker[t] instanceof Function || typeof subclass.linker[t] === 'function') {
+                        subclass.linker[t] = eval('(subclass.linker[t]) = null')
+                        delete subclass.linker[t];
+                    } else {
+                        var z;
+                        try { z = subclass.linker[t].split('_^_'); }
+                        catch (_) { z = subclass.linker[t]; }
+                        for (var T in z) if (z.hasOwnProperty(T)) {
+                            z[T] = eval('z[T] = null');
+                            delete z[T];
+                            delete subclass.linker[t]
+                        }
+                    }
+                }
+            }
+            delete subclass.linker;
+            subclass = null;
+
+            //Should remove class memory also
+            Class = null;
+        });
 
         //The default constructor of the soon to be pseudo Class / Type system
         //The reason this is here is because constructors must return void this we cannot return the apply call to the top of the stack with the defaultConstructor
