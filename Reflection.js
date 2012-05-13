@@ -7,6 +7,11 @@
 
     Reflection.constructor = Reflection;
 
+    //Possibly should utilize RegEx...
+    //Possibly should find hidden arguments
+    //Possibly should only find/retrieve arguments of certain type
+    //Possibly should find type of returned arguments
+    //Possibly should contain ParameterInfo for returned arguments
     Reflection.getArguments = function (func) {
         var symbols = func.toString(),
             start, end, register;

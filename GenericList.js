@@ -625,13 +625,11 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                set: function (newCapacity) {
                    if (!newCapacity || isNaN(newCapacity) || newCapacity === capacity) return;
                    if (newCapacity > capacity) {
-                       //Size Increase
-                       //Todo
+                       capacity = newCapacity;
+                       return new List(this);
                    } else {
-                       //Size Decrease
-                       //Todo
+                       return new List(this.Take(0, newCapacity - 1));
                    }
-                   capacity = newCapacity;
                }
            });
 
@@ -702,6 +700,8 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         Object.freeze = function (object) { };
     }
 
+    //var Interface; var $interface;
+
     var IEnumerable = function (dataItems) {
         if (!(this instanceof IEnumerable)) {
             return new IEnumerable(dataItems);
@@ -734,7 +734,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         }
     };
 
-    IEnumerable.toString = function () { return 'IEnumerable'; }
+    IEnumerable.toString = function () { return /*'[object Interface */'IEnumerable'/*]'*/; ; }
 
     IEnumerable.$abstract = true;
 
