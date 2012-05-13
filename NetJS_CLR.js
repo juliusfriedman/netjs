@@ -27,6 +27,48 @@
         //Export $Export to the window as export
         $Export($Export, window, '$export');
 
+        function legacyGet(object, property, descriptor) {
+            //Scan caller for loop constrcturs and return based on descriptor.enumerble
+        }
+
+        function legacySet(object, property, descriptor, value) {
+            //Scan caller for and return bas on descriptor.writeable
+            if (!descriptor.writeable) return;
+            object[property] = value;
+        }
+
+        //Polyfill for defineProperty
+        if (!Object.defineProperty) {
+            //Adds a property to an object with getter, setter and descriptor support
+            function defineProperty(object, name, descriptor) {
+                if (!object || !name) return;
+                descriptor = {
+                    enumerable: descriptor.enumerable || false,
+                    writeable: descriptor.writeable || false,
+                    configurable: descriptor.configurable || false,
+                    value: descriptor.value || null,
+                    get: descriptor.get ? descriptor.get : function () { return legacyGet(this, name, descriptor); } .bind(object),
+                    set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(this, name, descriptor, value); } .bind(object) : function () { }
+                }
+                if (Object.defineProperty) return Object.defineProperty(object, name, descriptor);
+                else {
+                    //Assign property
+                    object[name] = descriptor.value;
+
+                    //Create getter
+                    if (descript.get) object['get_' + name] = descriptor.get;
+                    //else object['get_' + name] = function () { return legacyGet(this, name, descriptor); } //legacyGet.apply([this, name, descriptor], this);
+
+                    //Create setter
+                    if (descriptor.set) object['set_' + name] = descriptor.set;
+                    //else object['set_' + name] = function (value) { return legacySet(this, name, descriptor, value); } //legacySet.apply([this, name, descriptor, undefined], this);
+                }
+            }
+
+            //Augment Object
+            Object.defineProperty = defineProperty;
+        }
+
         //The abstract class constructor
         function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + JSON.stringify(constructor) + ', ' + this.$abstract.toString() + ']'; }
 
@@ -53,6 +95,10 @@
 
             constructor.prototype = prototypeObject;
 
+            //Store __TypeName
+            Object.defineProperty(derivedConstructor, '__TypeName', {
+                get: function () { return linkedName; }
+            });
             return derivedConstructor;
         }
 
