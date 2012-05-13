@@ -702,48 +702,51 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
     //var Interface; var $interface;
 
-    var IEnumerable = function (dataItems) {
-        if (!(this instanceof IEnumerable)) {
-            return new IEnumerable(dataItems);
-        }
+    //    var IEnumerable = function (dataItems) {
+    //        if (!(this instanceof IEnumerable)) {
+    //            return new IEnumerable(dataItems);
+    //        }
 
-        this.clauses = new Array();
-        this.source = dataItems;
-    };
-
-
-    IEnumerable.prototype = {
-        getNext: function () {
-            var next;
-
-            var clauses = this.clauses;
-            this.source.some(function (element, index, array) {
-                if (clauses[0](element, index, array)) { // Generic predicate
-                    next = element;
-                    return true;
-                }
-                return false;
-            });
-
-            return next;
-        },
-
-        push: function (clause) {
-            this.clauses.push(clause);
-            return this;
-        }
-    };
-
-    IEnumerable.toString = function () { return /*'[object Interface */'IEnumerable'/*]'*/; ; }
-
-    IEnumerable.$abstract = true;
-
-    console.log(IEnumerable([2, 3, 5]).push(function (element, index, array) {
-        return index > 1 ? true : false;
-    }).getNext());
+    //        this.clauses = new Array();
+    //        this.source = dataItems;
+    //    };
 
 
-    subclass(IEnumerable, List);
+    //    IEnumerable.prototype = {
+    //        getNext: function () {
+    //            var next;
+
+    //            var clauses = this.clauses;
+    //            this.source.some(function (element, index, array) {
+    //                if (clauses[0](element, index, array)) { // Generic predicate
+    //                    next = element;
+    //                    return true;
+    //                }
+    //                return false;
+    //            });
+
+    //            return next;
+    //        },
+
+    //        push: function (clause) {
+    //            this.clauses.push(clause);
+    //            return this;
+    //        }
+    //    };
+
+    //    IEnumerable.toString = function () { return /*'[object Interface */'IEnumerable'/*]'*/; ; }
+
+    //    IEnumerable.$abstract = true;
+
+    //    console.log(IEnumerable([2, 3, 5]).push(function (element, index, array) {
+    //        return index > 1 ? true : false;
+    //    }).getNext());
+
+
+    //    subclass(IEnumerable, List);
+
+    //Freeze IEnumerable
+    Object.freeze(IEnumerable);
 
     //Freeze List
     Object.freeze(List);
