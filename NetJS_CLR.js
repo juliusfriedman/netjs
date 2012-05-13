@@ -6,7 +6,7 @@
 
         function $Export(what, where, as) {
             as = as || what;
-            $Export.exported[what] = as;
+            $Export.exported[as] = where;
             where[as] = what;
         }
 
@@ -14,7 +14,7 @@
 
         $Export.remove = function (what) {
             //Enumerate exported members
-            for (var t in $Export.exported)
+            for (var t in $Export.exported) // t is type or typeName
             //If there is a member with the same type name as what
                 if ($Export.exported.hasOwnProperty(t)) {
                     //Express the typename to get where it was exported to and delete it as well as the Export entry
@@ -23,7 +23,8 @@
                 }
         }
 
-        $Export($Export, window, 'export');
+        //Export $Export to the window as export
+        $Export($Export, window, '$export');
 
         //The abstract class constructor
         function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + JSON.stringify(constructor) + ', ' + this.$abstract.toString() + ']'; }
@@ -119,6 +120,10 @@
         baseClass.$abstract = true;
         baseClass.toString = function () { return /*'[object Class */'baseClass'/*]'*/; };
 
+        //Export Defined Classes for Unit Tests and make pseudo keyword 'abstract'
+        $Export(baseClass, window, '$abstract');
+        $Export(baseClass, window);
+
         //The Class which represents classes
         //The Mother of All Mother Functions
         //The Constructor of No Contructor
@@ -130,12 +135,14 @@
         //If the base class is abstract return the reference to it otherwise return the reference to the result of subclass given this instance and the baseClass
         function Class(base) { return base.$abstract ? base : subclass(this, base); }
 
-        window.Class = Class;
+        Class.toString = function () { return 'Class'; }
+
+        $Export(Class, window);
 
         //Classes for testing
 
         //Test class which can be instantiated derived from base
-        var myClass = function () {
+        function myClass () {
 
             //Privates
             var base = Class(baseClass),
@@ -151,15 +158,17 @@
             }
 
             this.cast = Function.prototype.cast;
-
-            this.toString = function () { return /*'[object Class */'baseClass'/*]'*/; };
         }
+
+        myClass.toString = function () { return /*'[object baseClass */'myClass'/*]'*/; };
 
         //Ensure instanceof works correctly
         subclass(myClass, baseClass);
 
+        $Export(myClass, window);
+
         //Derived class from myClass
-        var anotherClass = function () {
+        function anotherClass() {
 
             //Store the base reference
             var base = myClass;
@@ -172,11 +181,16 @@
             this.valueOf = function () {
                 if (this instanceof baseClass) return myInt;
                 return myString;
-            }
-
-            this.toString = function () { return /*'[object Class */'anotherClass'/*]'*/; };
+            }            
 
         }
+
+        anotherClass.toString = function () { return /*'[object myClass */'anotherClass'/*]'*/; };
+
+        //Ensure instanceof works correctly
+        subclass(anotherClass, myClass);
+
+        $Export(anotherClass, window);
 
         //This is maybe not the best place
         Function.prototype.cast = function (type, call) {
@@ -190,15 +204,6 @@
 
         //New call function intercept
         Function.prototype.call = function () { return this.$abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : Function.prototype._call.bind(this)(arguments) };
-
-        //Ensure instanceof works correctly
-        subclass(anotherClass, myClass);
-
-        //Export Defined Classes for Unit Tests and make pseudo keyword 'abstract'
-        window.baseClass = window.$abstract = baseClass;
-        window.myClass = myClass;
-        window.anotherClass = anotherClass;
-
 
     })();
 

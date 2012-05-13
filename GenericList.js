@@ -127,7 +127,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             //If we are disposing then check for all instances to be disposed and remove the type
             if (disposing && Object.keys($List$Instances).length === 0) {
                 //Remove exports
-                window.export.remove(List);
+                window.$export.remove(List);
                 List = null;
                 $List$Created = null;
                 $List$Instances = null;
@@ -749,6 +749,6 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     Object.freeze(List);
 
     //Export
-    window.export(List, window);
+    window.$export(List, window);
 
 })();
