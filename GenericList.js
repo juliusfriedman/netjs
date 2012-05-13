@@ -82,7 +82,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     }
 
     //Alias export
-    window.Default = window.$Default = window.$default = $default = $Default;
+    $export($Default, window, '$default');
 
 
     // Method:  $GenericSort
@@ -127,7 +127,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
             //If we are disposing then check for all instances to be disposed and remove the type
             if (disposing && Object.keys($List$Instances).length === 0) {
                 //Remove exports
-                window.$export.remove(List);
+                $export.remove(List);
                 List = null;
                 $List$Created = null;
                 $List$Instances = null;
@@ -749,6 +749,6 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     Object.freeze(List);
 
     //Export
-    window.$export(List, window);
+    $export(List, window);
 
 })();

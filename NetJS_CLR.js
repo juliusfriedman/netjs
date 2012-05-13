@@ -1,6 +1,6 @@
-﻿~function (extern) {
+﻿~function (extern, REBUILD_CLR) {
 
-    return Function.prototype.cast ? undefined : (function () {
+    return Function.prototype.cast && !REBUILD_CLR ? undefined : (function () {
 
         //.Net JavaScript
 
@@ -55,28 +55,36 @@
             return derivedConstructor;
         }
 
+        //Memory for the pseudo type system
         subclass.linker = {};
 
-        window.subclass = subclass;
+        $Export(subclass, window, 'subclass');
 
         window.addEventListener('unload', function () {
+            //For each type in the linker
             for (var t in subclass.linker) {
+                //If there is a type in the linker with the name t
                 if (subclass.linker.hasOwnProperty(t)) {
-                    if (subclass.linker[t] instanceof Function || typeof subclass.linker[t] === 'function') {
-                        $Export.remove(subclass.linker[t]);
-                        subclass.linker[t] = eval('(subclass.linker[t]) = null')
-                        delete subclass.linker[t];
-                    } else {
-                        var z;
-                        try { z = subclass.linker[t].split('_^_'); }
-                        catch (_) { z = subclass.linker[t]; }
+                    //If the t is a constructor
+                    if (!subclass.linker[t] instanceof Function || typeof subclass.linker[t] === 'function') {
+                        //Buffer
+                        var z = subclass.linker[t];
+                        //Enumerate constructor (looking for nested exports)
                         for (var T in z) if (z.hasOwnProperty(T)) {
-                            $Export.remove(subclass.linker[t]);
-                            z[T] = eval('z[T] = null');
-                            delete z[T];
-                            delete subclass.linker[t]
+                            $Export.remove(subclass.linker[T]); //Remove the exports to the constructor
+                            delete subclass.linker[T] // Remove the constructor
+                            delete z[T]; //Remove the constructor link reference
                         }
+
+                        //Remove the exports
+                        $Export.remove(z);
+                        //Delete the link
+                        delete z;
                     }
+                    //Remove the exports
+                    $Export.remove(subclass.linker[t]);
+                    //Delete the link
+                    delete subclass.linker[t];
                 }
             }
             delete subclass.linker;
@@ -134,15 +142,15 @@
 
         //If the base class is abstract return the reference to it otherwise return the reference to the result of subclass given this instance and the baseClass
         function Class(base) { return base.$abstract ? base : subclass(this, base); }
-
-        Class.toString = function () { return 'Class'; }
+        Class.toString = function () { return /*'[object */'Class'/*]'*/; };
+        Class.cast = Function.prototype.cast;
 
         $Export(Class, window);
 
         //Classes for testing
 
         //Test class which can be instantiated derived from base
-        function myClass () {
+        function myClass() {
 
             //Privates
             var base = Class(baseClass),
@@ -181,7 +189,7 @@
             this.valueOf = function () {
                 if (this instanceof baseClass) return myInt;
                 return myString;
-            }            
+            }
 
         }
 
@@ -202,9 +210,9 @@
         //Probably not needed
         Function.prototype._call = Function.prototype.call;
 
-        //New call function intercept
-        Function.prototype.call = function () { return this.$abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : Function.prototype._call.bind(this)(arguments) };
+        //New call function intercept, should never call the abstractConstructor unless from a derived class and this ensures it
+        Function.prototype.call = function () { return this.$abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : Function.prototype._call.apply(this, arguments) };
 
     })();
 
-} (this);
+} (this, false);
