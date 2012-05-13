@@ -194,6 +194,20 @@
 
         $Export(Class, window);
 
+        //Method: using
+        //Description: Allows using of disposable objects
+        function using(disposable, what, finalizer) {
+            if (!disposable && !what) return;
+            //Scope the finalizer
+            var _finally = finalizer || disposable.Dispose;
+            try { what(); } //Attemp the logic
+            catch (_) { _finally(); } //Catch to the finalizer
+            finally { _finally(); } //Fall through to the finalizer
+        }
+
+        $Export(using, window, '$using');
+        $Export(using, window);
+
         //Classes for testing
 
         //Test class which can be instantiated derived from base

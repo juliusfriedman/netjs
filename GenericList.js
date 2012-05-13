@@ -184,7 +184,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         // ===============  Private Attributes  =================================================
 
-        var base = new Class(IEnumerable),
+        var /*base = new Class(IEnumerable),*/
         key = ++$List$Created,  // Identify each List instance with an incremented Id.
         capacity = arguments[2] || 10,        // Used to create getters and setters until I have worked out a different way
         oType = undefined,      // Used to ensure that all objects added to the list are of the same type.
@@ -746,7 +746,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     //    subclass(IEnumerable, List);
 
     //Freeze IEnumerable
-    Object.freeze(IEnumerable);
+    //Object.freeze(IEnumerable);
 
     //Freeze List
     Object.freeze(List);
