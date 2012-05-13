@@ -5,6 +5,7 @@
         //.Net JavaScript
 
         function $Export(what, where, as) {
+            if (!what && !where) return;
             as = as || what;
             $Export.exported[as] = where;
             where[as] = what;

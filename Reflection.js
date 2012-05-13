@@ -18,10 +18,10 @@
         (symbols.substr(start + 1, end - start - 1).split(',').forEach(function (argument) { args.push(argument); }));
         //Deterine if I should use RegExp
         //I know that using RegExp on a string may be faster then using the instanceof in certain cases as well as looping scopes
-        return args;        
+        return args;
     };
 
-    extern.Reflection = extern.reflection = Reflection;
+    $export(Reflection, window, 'reflection');
 
     Function.prototype.getArguments = function () { return Reflection.getArguments(this); }
 
