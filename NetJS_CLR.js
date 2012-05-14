@@ -344,9 +344,10 @@
             }
 
             GC.timeOuts[disposable] = GC.timeOuts[disposable] || [];
-            var handle = GC.timeOuts[disposable].push(setTimeout(function () {
-                if (earlyCalls.length || new Date().getMilliseconds() - token > GC.TimeToLive) finalizer(token);
+            var handle = GC.timeOuts[disposable].push(setInterval(function () {
+                if (earlyCalls.length === 0|| new Date().getMilliseconds() - token > GC.TimeToLive) finalizer(token);
                 delete earlyCalls;
+                clearInterval(GC.timeOuts[disposable][handle]);
                 GC.timeOuts[disposable].splice(handle, 1); //Remove call in object history
                 if (GC.timeOuts[disposable].length === 0) delete GC.timeOuts[disposable]; //Remove object from history if there are no more timeouts registered.
             }, ((GC.timeOuts[disposable].length + 1) * 1000))); //Set the timeout for the length of known timeouts + 1 * 1000 (1 Second for the first, 2 for the next etc)
