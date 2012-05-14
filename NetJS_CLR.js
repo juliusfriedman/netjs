@@ -329,7 +329,7 @@
 
         //Method: using
         //Description: Allows using of disposable objects
-        function using(disposable) {
+        function $using(disposable) {
             //If there is no disposable return
             if (!disposable) return;
             //Scope the finalizer
@@ -345,7 +345,7 @@
 
             GC.timeOuts[disposable] = GC.timeOuts[disposable] || [];
             var handle = GC.timeOuts[disposable].push(setInterval(function () {
-                if (earlyCalls.length === 0|| new Date().getMilliseconds() - token > GC.TimeToLive) finalizer(token);
+                if (earlyCalls.length === 0|| new Date().getMilliseconds() - token >= GC.TimeToLive) finalizer(token);
                 delete earlyCalls;
                 clearInterval(GC.timeOuts[disposable][handle]);
                 GC.timeOuts[disposable].splice(handle, 1); //Remove call in object history
@@ -354,8 +354,7 @@
 
         }
 
-        $Export(using, window, '$using');
-        $Export(using, window);
+        $Export($using, window, 'using');
 
         //Classes for testing
 
