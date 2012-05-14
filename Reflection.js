@@ -4,6 +4,7 @@
     var Reflection = this.Reflection = (function () { return Reflection; });
     Reflection.prototype = Reflection;
     Reflection.constructor = Reflection;
+    Reflection.toString = function () { return 'Reflection'; }
     Reflection.$abstract = true;
 
     function ParameterInfo(/*func*/) {
@@ -41,10 +42,10 @@
                     position: index,
                     name: raw,
                     parameterType: '', //ToDo with match
-                    optional: raw.indexOf('=') !== -1                    
+                    optional: raw.indexOf('=') !== -1
                 }));
             });
-            
+
             return results.array;
 
         } else if (Is(arguments[0], Object)) {
@@ -157,5 +158,9 @@
     Function.prototype.getArguments = function () { return Reflection.getArguments(this); }
 
     Function.prototype.getExpectedReturnType = function () { /*ToDo*/ }
+
+    Object.seal(Reflection);
+
+    Object.freeze(Reflection);
 
 } (this);
