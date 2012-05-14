@@ -35,6 +35,12 @@
         function GC() { CollectGarbage(); }
         GC.$abstract = true;
 
+        //Backup GarbadgeCollector
+        var _CollectGarbadge = CollectGarbage;
+
+        //Replace
+        CollectGarbage = GC;
+
         //Hash of known Object, Handles with a live timeOut
         GC.timeOuts = {};
 
@@ -345,7 +351,7 @@
 
             GC.timeOuts[disposable] = GC.timeOuts[disposable] || [];
             var handle = GC.timeOuts[disposable].push(setInterval(function () {
-                if (earlyCalls.length === 0|| new Date().getMilliseconds() - token >= GC.TimeToLive) finalizer(token);
+                if (earlyCalls.length === 0 || new Date().getMilliseconds() - token >= GC.TimeToLive) finalizer(token);
                 delete earlyCalls;
                 clearInterval(GC.timeOuts[disposable][handle]);
                 GC.timeOuts[disposable].splice(handle, 1); //Remove call in object history
