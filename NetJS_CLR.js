@@ -11,6 +11,7 @@
             catch (e) {
                 return e === 'Function expected' ?
                 arguments.callee == Function.apply :
+                    arguments.callee.caller.caller.caller == Class && arguments.callee.caller.caller == Function.prototype.apply ? true :
                     arguments.callee.caller.caller.caller.caller === subclass ? true : arguments.callee.caller.caller.caller.caller === cast ? true : false;
             }
             return this === newScope;
@@ -334,7 +335,7 @@
         //NOW I JUST HAVE TO FIGURE OUT HOW TO GET CONSTRUCTOR CHAINING TO WORK!!!! UGH!
 
         //If the base class is abstract return the reference to it otherwise return the reference to the result of subclass given this instance and the baseClass
-        function Class(base) { return base.$abstract ? base : subclass(this, base); }
+        function Class(base) { return base.$abstract ? base.apply(this) : subclass(this, base); }
         Class.toString = function () { return /*'[object */'Class'/*]'*/; };
         Class.cast = Function.prototype.cast;
 
