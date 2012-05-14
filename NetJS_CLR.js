@@ -181,7 +181,7 @@
         function defaultConstructor(instance) {
             instance = instance || this;
             try { applyInstance(instance, instance.$base || Object); }
-            catch (ex) { throw abstractConstructor(instance); }
+            catch (_) { throw abstractConstructor(instance); }
         }
 
         //Make the concept of abstract
