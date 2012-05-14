@@ -1,6 +1,6 @@
 ﻿~function (extern, REBUILD_CLR) {
 
-    return Function.prototype.$apply && !REBUILD_CLR ? undefined : new (function () {
+    return CollectGarbage.toString() === 'GC' && !REBUILD_CLR ? undefined : new (function () {
 
         //.Net JavaScript (this should be a new scope)
         var newScope = this;
@@ -19,10 +19,10 @@
 
         function $checkCLR() { if (!isCLR()) throw 'The CLR is required to access this scope'; }
 
-        Function.prototype.$apply = Function.prototype.apply;
+        var Function$prototype$apply = Function.prototype.apply;
 
         //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
-        Function.prototype.apply = function () { checkCLR(); return Function.prototype.$apply; }
+        Function.prototype.apply = function () { checkCLR(); return Function$prototype$apply; }
 
         //Object.prototype._constructor = Object.prototype.constructor;
 
@@ -72,8 +72,11 @@
         //Export $Export to the window as export
         $Export($Export, window, '$export');
 
-        //Gets the Type name from the Constructor given
-        function $getTypeName(type) { try { return type.toString().split(' ')[1].replace('()', ''); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
+        //Gets the Type name from the Constructor given (Native/Declared Types Only)
+        function $getTypeName(type) { try { type = type || this.GetTypeName(); return type.toString().split(' ')[1].replace('()', ''); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
+
+        //Allows a constructor to determine if new was called
+        function $isNewObject(object) { return object.toString() === '[object Object]'; }
 
         //Export $getTypeName to the window as GetTypeName
         $export($getTypeName, window, 'GetTypeName');
@@ -226,13 +229,14 @@
 
             $checkSealed(constructor, derivedConstructor);
 
-            var linkedName = '_type_' + derivedConstructor.toString() + '_^_' + constructor.toString();
+            var linkedName = '_type_' + derivedConstructor.toString() + '_^_' + constructor.toString(),
+                isInstance = $isNewObject(constructor);
 
             if (subclass.linker[linkedName] && subclass.linker[linkedName].constructor === constructor) return derivedConstructor;
 
             if (constructor.$abstract && !derivedConstructor) abstractConstructor(constructor);
 
-            var surrogateConstructor = subclass.linker['_ctor_' + linkedName + '_^_SurrogateConstructor'] = function () { constructor.apply(derivedConstructor); }
+            var surrogateConstructor = subclass.linker['_ctor_' + linkedName + '_^_SurrogateConstructor'] = function () { return constructor.apply ? constructor.apply(derivedConstructor) : undefined; }
 
             //Todo
             //Check for Disposable and implement unload?
@@ -244,8 +248,8 @@
 
             constructor.prototype = prototypeObject;
 
-            //Store __TypeName
-            Object.defineProperty(derivedConstructor, '__TypeName', {
+            //Store __TypeName if this is not a instance because Class stored the __TypeName for Classes
+            if (!isInstance) Object.defineProperty(derivedConstructor, '__TypeName', {
                 get: function () { return linkedName; }
             });
             return derivedConstructor;
@@ -335,7 +339,20 @@
         //NOW I JUST HAVE TO FIGURE OUT HOW TO GET CONSTRUCTOR CHAINING TO WORK!!!! UGH!
 
         //If the base class is abstract return the reference to it otherwise return the reference to the result of subclass given this instance and the baseClass
-        function Class(base) { return base.$abstract ? base.apply(this) : subclass(this, base); }
+        function Class(base) {
+            Object.defineProperty(this, '__TypeName', { value: base.__TypeName }); // Ensure the __TypeName is present
+            Object.defineProperty(this, 'base', { value: base }); // Ensure the base keyword works in the scope
+            subclass(this, base); // Subclass all classes
+
+            //Function to return the TypeName member
+            //this.GetTypeName = function () { return this.__TypeName; }
+
+            //this.toString = this.GetTypeName;
+
+            CLRObject.apply(this);
+
+            return base.$abstract ? base.apply(this) : subclass(this, base); // Return the base constructor
+        }
         Class.toString = function () { return /*'[object */'Class'/*]'*/; };
         Class.cast = Function.prototype.cast;
 
@@ -370,13 +387,21 @@
 
         $Export($using, window, 'using');
 
+        //The CLRObject which will be the base class of all classes going forward
+        function CLRObject() {
+            Class.apply(arguments, this);
+            this.toString = function () { return this.__TypeName; }
+        }
+
+        CLRObject.prototype.toString = function () { return 'CLRObject'; }
+
         //Classes for testing
 
         //Test class which can be instantiated derived from base
         function myClass() {
 
             //Privates
-            var base = Class(baseClass),
+            var base = new Class(baseClass),
                 intValue = Number(0),
                 stringValue = String('');
 
@@ -402,7 +427,7 @@
         function anotherClass() {
 
             //Store the base reference
-            var base = myClass;
+            var base = new myClass();
             //If you would like the inherited base members to be public then utilize the latter
             //var base = myClass; base.apply(this);
 
@@ -433,13 +458,13 @@
         $Export($cast, window, 'cast');
 
         //Probably not needed
-        Function.prototype._call = Function.prototype.call;
+        var $Function$prototype$call = Function.prototype.call;
 
         //New call function intercept, should never call the abstractConstructor unless from a derived class and this ensures it
-        Function.prototype.call = function () { return this.$abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : Function.prototype._call.apply(this, arguments) };
+        Function.prototype.call = function () { return this.$abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : $Function$prototype$call.apply(this, arguments) };
 
         //Calls the function with named arguments if given using call intercept
-        Function.prototype.callWithArguments = function (/*bind*/) {
+        function callWithArguments (/*bind*/) {
             if (arguments.length) {
                 var args = [];
                 for (var i = 0, e = arguments.length; i < e; ++i)

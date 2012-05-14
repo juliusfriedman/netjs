@@ -7,21 +7,21 @@
     Reflection.toString = function () { return 'Reflection'; }
     Reflection.$abstract = true;
 
-    function ParameterInfo(/*func*/) {
-
-        //Lex the given function to get C# style attributes
-        function Lex(func) {
-            if (!func) return undefined;
-            var symbols = func.toString(),
+    //Lex the given function to get C# style attributes
+    function Lex(func) {
+        if (!func) return undefined;
+        var symbols = func.toString(),
             start, end;
-            start = symbols.indexOf('function');
-            if (start !== 0 && start !== 1) return undefined;
-            start = symbols.indexOf('(', start);
-            end = symbols.indexOf(')', start);
-            var args = [];
-            (symbols.substr(start + 1, end - start - 1).split(',').forEach(function (argument) { args.push(argument); }));
-            return args;
-        };
+        start = symbols.indexOf('function');
+        if (start !== 0 && start !== 1) return undefined;
+        start = symbols.indexOf('(', start);
+        end = symbols.indexOf(')', start);
+        var args = [];
+        (symbols.substr(start + 1, end - start - 1).split(',').forEach(function (argument) { args.push(argument); }));
+        return args;
+    };
+
+    function ParameterInfo(/*func*/) {
 
         // ===============  Private Attributes  =================================================
         var attributes,
@@ -31,24 +31,57 @@
             name, parameterType,
             position, rawDefaultValue;
 
+        // Constructor Logic for a raw string or function
         if (Is(arguments[0], String) || Is(arguments[0], Function)) {
             //We are given a single parameter to lex and return a series of ParameterInfo in a List
-            var results = new List(ParameterInfo);
+            var results = new List(ParameterInfo), //Used to ensure only ParameterInfo[] is returned from this function (encase new ParameterInfo fails)
+                inComment = false, //Used for optional
+                rawType = undefined, //Used for parameterType
+                retVal = false, //Unused as of now
+                lookAhead = Lex(arguments[0]), //Get raw declarations
+                skipUntilIndex = -1,
+                _rawDefaultValue = undefined;
 
-            //Get raw declarations and iterate
-            Lex(arguments[0]).forEach(function (raw, index) {
+
+            //Iterate raw declarations
+            lookAhead.forEach(function (/*String*/raw, /*Number*/index) {
+
+                //Allow look ahead
+                if (index < skipUntilIndex) return;
+
+                //Determine if inside a comment (only /**/ style is supported for function arguments
+                inComment = raw.indexOf('*') !== -1 && raw.indexOf('//') !== -1;
+
+                //Determine retVal
+                retVal = raw.indexOf('ret');
+
+                //Prepare name
+                raw = raw.replace('*', '');
+                raw = raw.replace('//', '');
+
+                if (retVal !== -1) {//Default value if ret is preset?
+                    skipUntilIndex = index + 2;
+                    _rawDefaultValue = raw.subString(retVal, lookAhead[skipUntilIndex++]);
+                    raw = raw.replace('return', '');
+                    raw = raw.replace('ret', '');
+                    retVal = true;
+                } else retVal = false;
+
+
                 //Determine values based on matches inter alia
                 results.Add(new ParameterInfo({
                     position: index,
                     name: raw,
                     parameterType: '', //ToDo with match
-                    optional: raw.indexOf('=') !== -1
+                    optional: inComment,
+                    isReturn: retVal,
+                    rawDefaultValue: _rawDefaultValue
                 }));
             });
 
             return results.array;
 
-        } else if (Is(arguments[0], Object)) {
+        } else if (Is(arguments[0], Object)) {  // Constructor logic for Object parameters
             attributes = arguments[0].attributes || new List(/*Attribute*/);
             name = arguments[0].name;
             position = arguments[0].position;
@@ -66,6 +99,8 @@
             isLcid = arguments[0].isLcid;
             isOut = arguments[0].isOut;
             isRetval = arguments[0].isRetval;
+        } else {    // Constructor logic for arguments style            
+            //ToDo
         }
 
         // ===============  Public Properties  =================================================
@@ -126,7 +161,7 @@
 
         //Gets the name of the parameter.
         Object.defineProperty(this, 'Name', {
-            get: function () { return name = name.replace($JavascriptReflectionMatch, '') }
+            get: function () { return name; }
         });
 
         //Gets the Type of this parameter.
@@ -144,7 +179,11 @@
             get: function () { }
         });
 
+        this.toString = function () { return name; }
+
     }
+
+    ParameterInfo.toString = function () { return /*'[object Class */'ParameterInfo'/*]'*/; }
 
     //Possibly should utilize RegEx...
     //Possibly should find hidden arguments
@@ -155,9 +194,9 @@
 
     $export(Reflection, window, 'reflection');
 
-    Function.prototype.getArguments = function () { return Reflection.getArguments(this); }
+    //Function.prototype.getArguments = function () { return Reflection.getArguments(this); }
 
-    Function.prototype.getExpectedReturnType = function () { /*ToDo*/ }
+    //Function.prototype.getExpectedReturnType = function () { /*ToDo*/ }
 
     Object.seal(Reflection);
 

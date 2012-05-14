@@ -48,7 +48,7 @@
                 test = Reflection.getArguments(myList.Add);
             if (!Verify(test, ['object'])) except('Wrong Return');
 
-            test = myList.Reverse.getArguments();
+            test = Reflection.getArguments(myList.Reverse);
             if (!Verify(test, ['index', 'count'])) except('Wrong Return');
         }
 
@@ -163,6 +163,8 @@
             catch(ex)
             {
                 alert('The following error occurred: ' + ex);
+                debugger;
+                throw ex;
             }
         }
     
