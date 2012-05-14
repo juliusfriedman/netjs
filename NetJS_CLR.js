@@ -56,11 +56,22 @@
         $Export($Export, window, '$export');
 
         //Gets the Type name from the Constructor given
-        function getTypeName(type) { try { return type.toString().split(' ')[1].replace('()', ''); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
+        function $getTypeName(type) { try { return type.toString().split(' ')[1].replace('()', ''); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
+        
+        //Export $getTypeName to the window as GetTypeName
+        $export($getTypeName, window, 'GetTypeName');
 
         //Is function
-        function $Is(what, type) { try { return what instanceof type || (typeof what).toString().toLocaleLowerCase() === getTypeName(type).toLocaleLowerCase(); } catch (_) { return false; } }
+        function $Is(what, type) { try { return what instanceof type || (typeof what).toString().toLocaleLowerCase() === $getTypeName(type).toLocaleLowerCase(); } catch (_) { return false; } }
+
+        //Export $Is to the window as Is
         $export($Is, window, 'Is');
+
+        //Export to static
+        Object.is = $Is;
+
+        //Export to prototype
+        Object.prototype.is = Object.is;
 
         //Polyfill for defineProperty
         if (!Object.defineProperty) {
