@@ -27,18 +27,44 @@
         //Export $Export to the window as export
         $Export($Export, window, '$export');
 
-        function legacyGet(object, property, descriptor) {
-            //Scan caller for loop constrcturs and return based on descriptor.enumerble
-        }
-
-        function legacySet(object, property, descriptor, value) {
-            //Scan caller for and return bas on descriptor.writeable
-            if (!descriptor.writeable) return;
-            object[property] = value;
-        }
-
         //Polyfill for defineProperty
         if (!Object.defineProperty) {
+            var descriptorHash = {};
+
+            function legacyGet(object, property, descriptor) {
+                return descriptor.value ? descriptor.value.valueOf() :
+                descriptor.get ? descriptor.get.bind(object)() : object[property];
+            }
+
+            function legacySet(object, property, descriptor, value) {
+                if (!descriptor.writeable || (descriptor.enforceType && !(value instanceof descriptor.value))) return;
+                object[property] = value;
+            }
+
+            function legacyIterate(object) {
+                ///TODO
+                for (var m in object) {
+                    //Kinda Need LINQ Yield here
+                }
+            }
+
+            function setDescriptor(object, property, newDescriptor) {
+                if (!object || !property) return;
+                var existing = descriptorHash[object][property];
+                if (existing && !existing.configurable) return;
+                defineProperty(object, name, newDescriptor || {
+                    enumerable: newDescriptor.enumerable || false,
+                    writeable: newDescriptor.writeable || false,
+                    configurable: descriptor.configurable || false,
+                    value: newDescriptor.value || null,
+                    enforceType: descriptor.enforceType || false,
+                    get: newDescriptor.get || undefined,
+                    set: newDescriptor.set || undefined
+                });
+                //Store last version
+                descriptorHash[object][property]._previous = existing;
+            }
+
             //Adds a property to an object with getter, setter and descriptor support
             function defineProperty(object, name, descriptor) {
                 if (!object || !name) return;
@@ -47,21 +73,24 @@
                     writeable: descriptor.writeable || false,
                     configurable: descriptor.configurable || false,
                     value: descriptor.value || null,
-                    get: descriptor.get ? descriptor.get : function () { return legacyGet(this, name, descriptor); } .bind(object),
-                    set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(this, name, descriptor, value); } .bind(object) : function () { }
+                    enforceType: descriptor.enforceType || false,
+                    get: descriptor.get ? descriptor.get : function () { return legacyGet(object, name, descriptor); } .bind(object),
+                    set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(object, name, descriptor, value); } .bind(object) : function () { }
                 }
                 if (Object.defineProperty) return Object.defineProperty(object, name, descriptor);
                 else {
                     //Assign property
                     object[name] = descriptor.value;
 
-                    //Create getter
-                    if (descript.get) object['get_' + name] = descriptor.get;
-                    //else object['get_' + name] = function () { return legacyGet(this, name, descriptor); } //legacyGet.apply([this, name, descriptor], this);
+                    //Create getter / setter
+                    var getterSetter = function (value) { return (!value || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
 
-                    //Create setter
-                    if (descriptor.set) object['set_' + name] = descriptor.set;
-                    //else object['set_' + name] = function (value) { return legacySet(this, name, descriptor, value); } //legacySet.apply([this, name, descriptor, undefined], this);
+                    //Store on object if enumerable
+                    if (descriptor.enumerable) object[name] = getterSetter;
+
+                    //Store in descriptor hash
+                    descriptorHash[object] = {};
+                    descriptorHash[object][name] = descriptor;
                 }
             }
 
@@ -120,9 +149,9 @@
                         for (var T in z) if (z.hasOwnProperty(T)) {
                             $Export.remove(subclass.linker[T]); //Remove the exports to the constructor
                             delete subclass.linker[T] // Remove the constructor
+                            $Export.remove(z[T]); //Remove any exports of the constructor link reference
                             delete z[T]; //Remove the constructor link reference
                         }
-
                         //Remove the exports
                         $Export.remove(z);
                         //Delete the link
