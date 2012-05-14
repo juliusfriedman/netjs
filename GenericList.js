@@ -155,25 +155,20 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
     //Array like Getter/Setter Logic, creates a getter for the List to access the inner array at the given index
     function $CreateGetterSetter(list, index) {
         try {
-            if (Object.defineProperty) {
-                Object.defineProperty(list, index, {
-                    //writable: true, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
-                    //enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
-                    //configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
-                    get: function () {
-                        if (index < 0 || index >= this.array.length) throw "index parameter out of range in List.Get";
-                        return this.array[index];
-                    },
-                    set: function (value) {
-                        if (index < 0 || index >= this.array.length) throw "index parameter out of range in List.Set";
-                        $Validate(list, value);
-                        this.array[index] = value;
-                    }
-                });
-            } else {
-                //Create alias
-                list[index] = list.array[index];
-            }
+            Object.defineProperty(list, index, {
+                //writable: true, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
+                //enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+                //configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+                get: function () {
+                    if (index < 0 || index >= this.array.length) throw "index parameter out of range in List.Get";
+                    return this.array[index];
+                },
+                set: function (value) {
+                    if (index < 0 || index >= this.array.length) throw "index parameter out of range in List.Set";
+                    $Validate(list, value);
+                    this.array[index] = value;
+                }
+            });
         }
         catch (_) { }
     }
@@ -568,12 +563,9 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
         // ===============  Public Properties  =================================================
 
-        //If supported define public properties on the List instance being created
-        if (Object.defineProperty) {
-
-            // Property: array
-            // Description: Gets or Sets in Native inner array utilized by the List for storage. The elements contained must be of the same type in which this List instance was created with.
-            Object.defineProperty(this, 'array',
+        // Property: array
+        // Description: Gets or Sets in Native inner array utilized by the List for storage. The elements contained must be of the same type in which this List instance was created with.
+        Object.defineProperty(this, 'array',
            {
                // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
                enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
@@ -592,9 +584,9 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                }
            });
 
-            // Property: $key
-            // Description: Gets the machine key which identifies this List instance in the memory of all created List instances.
-            Object.defineProperty(this, '$key',
+        // Property: $key
+        // Description: Gets the machine key which identifies this List instance in the memory of all created List instances.
+        Object.defineProperty(this, '$key',
            {
                configurable: true,
                get: function () {
@@ -602,9 +594,9 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                }
            });
 
-            // Property: $key
-            // Description: Gets the constructor or type in which this List was created with
-            Object.defineProperty(this, '$type',
+        // Property: $key
+        // Description: Gets the constructor or type in which this List was created with
+        Object.defineProperty(this, '$type',
            {
                enumerable: true,
                configurable: true,
@@ -613,9 +605,9 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                }
            });
 
-            // Property: $capacity
-            // Description: Gets the capacity associated with this list upon creation
-            Object.defineProperty(this, 'Capacity',
+        // Property: $capacity
+        // Description: Gets the capacity associated with this list upon creation
+        Object.defineProperty(this, 'Capacity',
            {
                enumerable: true,
                configurable: true,
@@ -633,22 +625,14 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                }
            });
 
-            //Inline the getter creation (65535 crashes IE9)
-            //What I am doing here is defining the getters so Array Like access works before we freeze the Object
-            //The alternative would be to not freeze the object and Augment it on Insert or Add
-            //The other option would be to implement Capacity and when the List resizes define new getters.
-            //This will only be until we have Proxy, then we can even seal this Instance and referece the proxy.
-            (function (self, counter) { while (counter >= 0) $CreateGetterSetter(self, --counter); })(this, capacity * 2);
+        //Inline the getter creation (65535 crashes IE9)
+        //What I am doing here is defining the getters so Array Like access works before we freeze the Object
+        //The alternative would be to not freeze the object and Augment it on Insert or Add
+        //The other option would be to implement Capacity and when the List resizes define new getters.
+        //This will only be until we have Proxy, then we can even seal this Instance and referece the proxy.
+        (function (self, counter) { while (counter >= 0) $CreateGetterSetter(self, --counter); })(this, capacity * 2);
 
-            //And I bet before then I could even use Object.watch or a polyfill of it to enfore a pseudo 'missing_method' and then invoke this function... how fortuitist
-
-        } else {
-            // Compatibility
-            this.Capacity = capacity;
-            this.$type = oType;
-            this.array = listArray;
-            this.$key = key;
-        }
+        //And I bet before then I could even use Object.watch or a polyfill of it to enfore a pseudo 'missing_method' and then invoke this function... how fortuitist
 
         //freeze new instance
         return Object.freeze(this);

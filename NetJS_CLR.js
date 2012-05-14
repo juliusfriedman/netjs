@@ -55,8 +55,11 @@
         //Export $Export to the window as export
         $Export($Export, window, '$export');
 
+        //Gets the Type name from the Constructor given
+        function getTypeName(type) { try { return type.toString().split(' ')[1].replace('()', ''); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
+
         //Is function
-        function $Is(what, type) { try { return what instanceof type || (typeof what).toString().toLocaleLowerCase() === Types.type.toString().toLocaleLowerCase(); } catch (_) { return false; } }
+        function $Is(what, type) { try { return what instanceof type || (typeof what).toString().toLocaleLowerCase() === getTypeName(type).toLocaleLowerCase(); } catch (_) { return false; } }
         $export($Is, window, 'Is');
 
         //Polyfill for defineProperty
