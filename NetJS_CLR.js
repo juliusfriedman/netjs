@@ -57,7 +57,7 @@
 
         //Gets the Type name from the Constructor given
         function $getTypeName(type) { try { return type.toString().split(' ')[1].replace('()', ''); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
-        
+
         //Export $getTypeName to the window as GetTypeName
         $export($getTypeName, window, 'GetTypeName');
 
@@ -72,6 +72,43 @@
 
         //Export to prototype
         Object.prototype.is = Object.is;
+
+        //Polyfill for freeze
+        if (!Object.freeze) {
+
+            //Puts the ice on
+            function ice(object) { freeze.freezer[object] = true; }
+
+            //Takes the ice off
+            function thaw(object) { delete freeze.freezer[object]; }
+
+            //Freeze the object
+            function freeze(object) { return ice(object); }
+
+            function isFrozen(object) { return freeze.freezer[object]; }
+
+            //Memory for frozen objects
+            freeze.freezer = {}
+
+            //Export
+            Object.freeze = freeze;
+            Object.isFrozen = isFrozen;
+        }
+
+        //Polyfill for seal
+        if (!Object.seal) {
+
+            function seal(object) { seal.memory[object] = true; }
+
+            function isSealed(objcect) { return seal.memory[object] ? true : false; }
+
+            //Memory for sealed objects
+            seal.memory = {};
+
+            //Export
+            Object.seal = seal;
+            Object.isSealed = isSealed;
+        }
 
         //Polyfill for defineProperty
         if (!Object.defineProperty) {
@@ -222,6 +259,7 @@
         //The default constructor of the soon to be pseudo Class / Type system
         //The reason this is here is because constructors must return void this we cannot return the apply call to the top of the stack with the defaultConstructor
         function applyInstance(constructor, derivedConstructor) {
+            if (Object.isSealed(constructor)) throw derivedConstructor.toString() + 'cannot inherit from sealed class' + constructor.toString() + '.';
             try { return constructor.apply(derivedConstructor); }
             catch (_) { return new constructor(); }
         }
