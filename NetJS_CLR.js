@@ -22,7 +22,6 @@
 
         //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
         Function.prototype.apply = function () {
-            var $self = this;
             checkCLR();
             return Function.prototype.$apply;
         }
