@@ -292,17 +292,15 @@
 
         //Make the concept of abstract
         //Possibly should be true so functions cannot be called new on accident
-        if (Object.definePropety) {
-            Object.definePropety(Function.prototype, 'abstract', {
-                writable: true,
-                enumerable: true,
-                configurable: true,
-                get: function () {
-                    return this.$abstract || false;
-                },
-                set: function (value) { return this.$abstract = value; }
-            });
-        } else Function.prototype.$abstract = false;
+        Object.defineProperty(Function.prototype, 'abstract', {
+            //writable: false,
+            enumerable: true,
+            configurable: false,
+            get: function () {
+                return this.$abstract || false;
+            },
+            set: function (value) { return this.$abstract = value; }
+        });
 
         //Pseudo Classes
         var baseClass = defaultConstructor; //(this);
