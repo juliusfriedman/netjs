@@ -5,17 +5,29 @@
         //.Net JavaScript (this should be a new scope)
         var newScope = this;
 
+        //This verification is ugly... the proper way to do this is to have a list of allowed entry points and do a compare on the caller chain to all of the qualified safe entry points
+        function $isCLR() {
+            try { if (!this instanceof newScope) return false; }
+            catch (e) {
+                return e === 'Function expected' ?
+                arguments.callee == Function.apply :
+                    arguments.callee.caller.caller.caller.caller === subclass ? true : arguments.callee.caller.caller.caller.caller === Function.prototype.cast ? true : false;
+            }
+            return this === newScope;
+        }
+
+        function $checkCLR() { if (!isCLR()) throw 'The CLR is required to access this scope'; }
+
         Function.prototype.$apply = Function.prototype.apply;
 
         //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
         Function.prototype.apply = function () {
             var $self = this;
-            try { if (!this instanceof newScope) return; }
-            catch (e) { if (!e === 'Function expected') return; }
+            checkCLR();
             return Function.prototype.$apply;
         }
 
-        Object.prototype._constructor = Object.prototype.constructor;
+        //Object.prototype._constructor = Object.prototype.constructor;
 
         Object.prototype.constructor = function () { return this === extern ? new Class(Object.prototype._constructor) : Class(Object.prototype._constructor); }
 
@@ -52,6 +64,9 @@
                 }
         }
 
+        $Export($isCLR, window, 'isCLR');
+        $Export($checkCLR, window, 'checkCLR');
+
         //Export $Export to the window as export
         $Export($Export, window, '$export');
 
@@ -71,7 +86,7 @@
         Object.is = $Is;
 
         //Export to prototype
-        Object.prototype.is = Object.is;
+        //Object.prototype.is = Object.is;
 
         //Polyfill for freeze
         if (!Object.freeze) {
@@ -98,17 +113,20 @@
         //Polyfill for seal
         if (!Object.seal) {
 
-            function seal(object) { seal.memory[object] = true; }
+            function seal(object) { seal.sealed[object] = true; }
 
-            function isSealed(objcect) { return seal.memory[object] ? true : false; }
+            function isSealed(object) { return seal.sealed[object] ? true : false; }
 
             //Memory for sealed objects
-            seal.memory = {};
+            seal.sealed = {};
 
             //Export
             Object.seal = seal;
             Object.isSealed = isSealed;
         }
+
+        //Throws for sealed attribute
+        function $checkSealed(constructor, derivedConstructor) { if (Object.isSealed(constructor)) throw derivedConstructor.toString() + 'cannot inherit from sealed class' + constructor.toString() + '.'; };
 
         //Polyfill for defineProperty
         if (!Object.defineProperty) {
@@ -192,6 +210,8 @@
         //Description: Helps interpreterd code to function correctly after compile with respect to instanceof
         function subclass(constructor, derivedConstructor) {
 
+            $checkSealed(constructor, derivedConstructor);
+
             var linkedName = '_type_' + derivedConstructor.toString() + '_^_' + constructor.toString();
 
             if (subclass.linker[linkedName] && subclass.linker[linkedName].constructor === constructor) return derivedConstructor;
@@ -259,8 +279,7 @@
         //The default constructor of the soon to be pseudo Class / Type system
         //The reason this is here is because constructors must return void this we cannot return the apply call to the top of the stack with the defaultConstructor
         function applyInstance(constructor, derivedConstructor) {
-            if (Object.isSealed(constructor)) throw derivedConstructor.toString() + 'cannot inherit from sealed class' + constructor.toString() + '.';
-            try { return constructor.apply(derivedConstructor); }
+            try { $checkSealed(constructor, derivedConstructor); return constructor.apply(derivedConstructor); }
             catch (_) { return new constructor(); }
         }
 
@@ -404,6 +423,18 @@
 
         //New call function intercept, should never call the abstractConstructor unless from a derived class and this ensures it
         Function.prototype.call = function () { return this.$abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : Function.prototype._call.apply(this, arguments) };
+
+        //Calls the function with named arguments if given using call intercept
+        Function.prototype.callWithArguments = function (/*bind*/) {
+            if (arguments.length) {
+                var args = [];
+                for (var i = 0, e = arguments.length; i < e; ++i)
+                    args.push(arguments[i]);
+                //args.push(bind ? self : self.bind(bind));
+                var actual = new Function(args);
+                return actual.call();
+            }
+        }
 
     })();
 

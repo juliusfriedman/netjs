@@ -64,7 +64,7 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
                 result = !lambda && bind ? //Bind the query if there is no lambda
                     (query.bind(tEl)()) :
                         !lambda && pass ? (query(tEl)) : //Pass the element to the query if there is no lambda
-                            lambda ? $ProcessLambda(query).apply(tEl, [tEl]) : //Process the lambda if present
+                            lambda ? $ProcessLambda(query).bind(tEl)(tEl) : //Process the lambda if present
                                 (new Function('_', 'with(_) return (' + query + ')')(tEl)); //Fallback to with method
             }
             catch (_) { result = false; }
