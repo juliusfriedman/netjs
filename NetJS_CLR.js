@@ -1,6 +1,6 @@
 ﻿~function (extern, REBUILD_CLR) {
 
-    return Function.prototype.cast && !REBUILD_CLR ? undefined : new (function () {
+    return Function.prototype.$apply && !REBUILD_CLR ? undefined : new (function () {
 
         //.Net JavaScript (this should be a new scope)
         var newScope = this;
@@ -11,7 +11,7 @@
             catch (e) {
                 return e === 'Function expected' ?
                 arguments.callee == Function.apply :
-                    arguments.callee.caller.caller.caller.caller === subclass ? true : arguments.callee.caller.caller.caller.caller === Function.prototype.cast ? true : false;
+                    arguments.callee.caller.caller.caller.caller === subclass ? true : arguments.callee.caller.caller.caller.caller === cast ? true : false;
             }
             return this === newScope;
         }
@@ -21,17 +21,15 @@
         Function.prototype.$apply = Function.prototype.apply;
 
         //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
-        Function.prototype.apply = function () {
-            checkCLR();
-            return Function.prototype.$apply;
-        }
+        Function.prototype.apply = function () { checkCLR(); return Function.prototype.$apply; }
 
         //Object.prototype._constructor = Object.prototype.constructor;
 
-        Object.prototype.constructor = function () { return this === extern ? new Class(Object.prototype._constructor) : Class(Object.prototype._constructor); }
+        Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class(Object.prototype._constructor); }
 
         //Garbadge Collector
         function GC() { CollectGarbage(); }
+        GC.toString = function () { return 'GC' }
         GC.$abstract = true;
 
         //Backup GarbadgeCollector
@@ -43,15 +41,11 @@
         //Hash of known Object, Handles with a live timeOut
         GC.timeOuts = {};
 
-        //Define the property of TimeToLive = 5 + Minutes in milliseconds
-        if (Object.defineProperty) Object.defineProperty(GC, 'TimeToLive', { value: 300025 });
-        else GC.TimeToLive = 300025;
-
         // Method: $Export 
         // Description: The Export function takes the given what and puts it where (optionally as 'as')
         function $Export(what, where/*, as*/) {
             if (!what && !where) return;
-            var as = arguments[2] || what;
+            var as = arguments[2] || what; //Might make this call toString and check for undefined;
             $Export.exported[as] = where;
             where[as] = what;
         }
@@ -69,6 +63,8 @@
                 }
         }
 
+        $Export(GC, window, 'GC');
+
         $Export($isCLR, window, 'isCLR');
         $Export($checkCLR, window, 'checkCLR');
 
@@ -83,6 +79,15 @@
 
         //Is function
         function $Is(what, type) { try { return what instanceof type || (typeof what).toString().toLocaleLowerCase() === $getTypeName(type).toLocaleLowerCase(); } catch (_) { return false; } }
+
+        //Export $Is to the window as Is
+        $export($Is, window, 'Is');
+
+        //As
+        function $As(what, type) { try { return new type(what); } catch (_) { return $cast(what, type); } }
+
+        //Export to static
+        Object.as = $As;
 
         //Export $Is to the window as Is
         $export($Is, window, 'Is');
@@ -206,6 +211,9 @@
 
         //Expose the CLR as readonly
         Object.defineProperty(window, 'CLR', { value: newScope });
+
+        //Define the property of TimeToLive = 5 + Minutes in milliseconds
+        Object.defineProperty(GC, 'TimeToLive', { value: 300025 });
 
         //The abstract class constructor
         function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + JSON.stringify(constructor) + ', ' + this.$abstract.toString() + ']'; }
@@ -379,7 +387,7 @@
                 return stringValue;
             }
 
-            this.cast = Function.prototype.cast;
+            this.cast = $cast;
         }
 
         myClass.toString = function () { return /*'[object baseClass */'myClass'/*]'*/; };
@@ -415,11 +423,13 @@
         $Export(anotherClass, window);
 
         //This is maybe not the best place
-        Function.prototype.cast = function (type, call) {
+        function $cast(type, call) {
             if (!type) return;
             if (!call) return type.bind(this);
             return call.bind(new type(this)).call(this);
         }
+
+        $Export($cast, window, 'cast');
 
         //Probably not needed
         Function.prototype._call = Function.prototype.call;
