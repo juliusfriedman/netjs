@@ -148,12 +148,15 @@
             try
             {
 
+            (function (_window) {
 
                 TestList();
 
                 TestReflection();
 
                 TestCast();
+
+            }).bind(window.CLR)(this);
 
                 
             }

@@ -1,12 +1,40 @@
 ﻿~function (extern, REBUILD_CLR) {
 
-    return Function.prototype.cast && !REBUILD_CLR ? undefined : (function () {
+    return Function.prototype.cast && !REBUILD_CLR ? undefined : new (function () {
 
-        //.Net JavaScript
+        //.Net JavaScript (this should be a new scope)
+        var newScope = this;
 
-        function $Export(what, where, as) {
+        Function.prototype.$apply = Function.prototype.apply;
+
+        //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
+        Function.prototype.apply = function () {
+            var $self = this;
+            try { if (!this instanceof newScope) return; }
+            catch (e) { if (!e === 'Function expected') return; }
+            return Function.prototype.$apply;
+        }
+
+        Object.prototype._constructor = Object.prototype.constructor;
+
+        Object.prototype.constructor = function () { return this === extern ? new Class(Object.prototype._constructor) : Class(Object.prototype._constructor); }
+
+        //Garbadge Collector
+        function GC() { CollectGarbage(); }
+        GC.$abstract = true;
+
+        //Hash of known Object, Handles with a live timeOut
+        GC.timeOuts = {};
+
+        //Define the property of TimeToLive = 5 + Minutes in milliseconds
+        if (Object.defineProperty) Object.defineProperty(GC, 'TimeToLive', { value: 300025 });
+        else GC.TimeToLive = 300025;
+
+        // Method: $Export 
+        // Description: The Export function takes the given what and puts it where (optionally as 'as')
+        function $Export(what, where/*, as*/) {
             if (!what && !where) return;
-            as = as || what;
+            var as = arguments[2] || what;
             $Export.exported[as] = where;
             where[as] = what;
         }
@@ -26,6 +54,10 @@
 
         //Export $Export to the window as export
         $Export($Export, window, '$export');
+
+        //Is function
+        function $Is(what, type) { try { return what instanceof type || (typeof what).toString().toLocaleLowerCase() === Types.type.toString().toLocaleLowerCase(); } catch (_) { return false; } }
+        $export($Is, window, 'Is');
 
         //Polyfill for defineProperty
         if (!Object.defineProperty) {
@@ -97,6 +129,9 @@
             //Augment Object
             Object.defineProperty = defineProperty;
         }
+
+        //Expose the CLR as readonly
+        Object.defineProperty(window, 'CLR', { value: newScope });
 
         //The abstract class constructor
         function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + JSON.stringify(constructor) + ', ' + this.$abstract.toString() + ']'; }
@@ -225,13 +260,28 @@
 
         //Method: using
         //Description: Allows using of disposable objects
-        function using(disposable, what, finalizer) {
-            if (!disposable && !what) return;
+        function using(disposable) {
+            //If there is no disposable return
+            if (!disposable) return;
             //Scope the finalizer
-            var _finally = finalizer || disposable.Dispose;
-            try { what(); } //Attemp the logic
-            catch (_) { _finally(); } //Catch to the finalizer
-            finally { _finally(); } //Fall through to the finalizer
+            var finalizer = disposable.Dispose,
+                token = new Date().getMilliseconds(),
+                earlyCalls = [];
+
+            //Override the Dispose method incase the user calls dispose inside on accident
+            disposable.Dispose = function (when) {
+                if (when === token) finalizer(true);
+                else earlyCalls.push(new Date().getMilliseconds());
+            }
+
+            GC.timeOuts[disposable] = GC.timeOuts[disposable] || [];
+            var handle = GC.timeOuts[disposable].push(setTimeout(function () {
+                if (earlyCalls.length || new Date().getMilliseconds() - token > GC.TimeToLive) finalizer(token);
+                delete earlyCalls;
+                GC.timeOuts[disposable].splice(handle, 1); //Remove call in object history
+                if (GC.timeOuts[disposable].length === 0) delete GC.timeOuts[disposable]; //Remove object from history if there are no more timeouts registered.
+            }, ((GC.timeOuts[disposable].length + 1) * 1000))); //Set the timeout for the length of known timeouts + 1 * 1000 (1 Second for the first, 2 for the next etc)
+
         }
 
         $Export(using, window, '$using');
