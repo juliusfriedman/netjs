@@ -5,17 +5,16 @@
         //.Net JavaScript (this should be a new scope)
         var newScope = this;
 
-       
-
         // Method: Export 
         // Description: The Export function takes the given what and puts it where (optionally as 'as')
         function $Export(what, where/*, as*/) {
             if (!what && !where) return;
-            var as = arguments[2] || what; //Might make this call toString and check for undefined;
+            var as = arguments[2] || what;
             $Export.exported[as] = where;
             where[as] = what;
         }
 
+        //Memory for exported members
         $Export.exported = {};
 
         //Export Export to the window as export
@@ -31,7 +30,7 @@
                     delete ($Export.exported[t])[t]
                     delete $Export.exported[t];
                 }
-        }        
+        }
 
         //This verification is ugly... the proper way to do this is to have a list of allowed entry points and do a compare on the caller chain to all of the qualified safe entry points
         function $isCLR() {
@@ -62,24 +61,24 @@
 
         //Object.prototype._constructor = Object.prototype.constructor;
 
-        Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class(Object.prototype._constructor); }
+        Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class({}); }
 
         //Backup GarbadgeCollector
         var _CollectGarbadge = typeof CollectGarbage === 'undefined' ? undefined : CollectGarbage;
 
         //Garbadge Collector
-        function GC() { CollectGarbage(); }
-        GC.toString = function () { return 'GC' }
-        GC.$abstract = true;
+        function $CollectGarbadge() { CollectGarbage(); }
+        $CollectGarbadge.toString = function () { return '$CollectGarbadge' }
+        $CollectGarbadge.$abstract = true;
 
         //Replace
-        CollectGarbage = GC;
+        CollectGarbage = $CollectGarbadge;
 
         //Hash of known Object, Handles with a live timeOut
-        GC.timeOuts = {};
+        $CollectGarbadge.timeOuts = {};
 
-        //Export GC
-        $Export(GC, window, 'CollectGarbadge');
+        //Export $CollectGarbadge
+        $Export($CollectGarbadge, window, 'CollectGarbadge');
 
         //Gets the Type name from the Constructor given (Native/Declared Types Only)
         function $getTypeName(type) { try { type = type || this.GetTypeName(); return type.toString().split(' ')[1].replace('()', ''); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
@@ -102,11 +101,16 @@
         //Export to static
         Object.as = $As;
 
+        //Export $As to the window as Is
+        Export($As, window, 'As');
+
         //Export $Is to the window as Is
         Export($Is, window, 'Is');
 
         //Export to static
         Object.is = $Is;
+
+        Export($Is, window, 'Is');
 
         //Export to prototype
         //Object.prototype.is = Object.is;
@@ -226,7 +230,7 @@
         Object.defineProperty(window, 'CLR', { value: newScope });
 
         //Define the property of TimeToLive = 5 + Minutes in milliseconds
-        Object.defineProperty(GC, 'TimeToLive', { value: 300025 });
+        Object.defineProperty($CollectGarbadge, 'TimeToLive', { value: 300025 });
 
         //The abstract class constructor
         function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + JSON.stringify(constructor) + ', ' + this.$abstract.toString() + ']'; }
@@ -383,14 +387,14 @@
                 else earlyCalls.push(new Date().getMilliseconds());
             }
 
-            GC.timeOuts[disposable] = GC.timeOuts[disposable] || [];
-            var handle = GC.timeOuts[disposable].push(setInterval(function () {
-                if (earlyCalls.length === 0 || new Date().getMilliseconds() - token >= GC.TimeToLive) finalizer(token);
+            $CollectGarbadge.timeOuts[disposable] = $CollectGarbadge.timeOuts[disposable] || [];
+            var handle = $CollectGarbadge.timeOuts[disposable].push(setInterval(function () {
+                if (earlyCalls.length === 0 || new Date().getMilliseconds() - token >= $CollectGarbadge.TimeToLive) finalizer(token);
                 delete earlyCalls;
-                clearInterval(GC.timeOuts[disposable][handle]);
-                GC.timeOuts[disposable].splice(handle, 1); //Remove call in object history
-                if (GC.timeOuts[disposable].length === 0) delete GC.timeOuts[disposable]; //Remove object from history if there are no more timeouts registered.
-            }, ((GC.timeOuts[disposable].length + 1) * 1000))); //Set the timeout for the length of known timeouts + 1 * 1000 (1 Second for the first, 2 for the next etc)
+                clearInterval($CollectGarbadge.timeOuts[disposable][handle]);
+                $CollectGarbadge.timeOuts[disposable].splice(handle, 1); //Remove call in object history
+                if ($CollectGarbadge.timeOuts[disposable].length === 0) delete $CollectGarbadge.timeOuts[disposable]; //Remove object from history if there are no more timeouts registered.
+            }, (($CollectGarbadge.timeOuts[disposable].length + 1) * 1000))); //Set the timeout for the length of known timeouts + 1 * 1000 (1 Second for the first, 2 for the next etc)
 
         }
 
@@ -473,7 +477,7 @@
         Function.prototype.call = function () { return this.$abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : $Function$prototype$call.apply(this, arguments) };
 
         //Calls the function with named arguments if given using call intercept
-        function callWithArguments (/*bind*/) {
+        function callWithArguments(/*bind*/) {
             if (arguments.length) {
                 var args = [];
                 for (var i = 0, e = arguments.length; i < e; ++i)
