@@ -8,6 +8,7 @@
         //Security
         addSafeScope = function (argumentz, expectedCallerDepth, expectedCaller/*,Boolean noVerify = false*/) {
             var noVerify = arguments[3] || false;
+            if (noVerify === false) expectedCallerDepth += 2; //Protect against CLR Checks unless noVerify is given
             try { if (noVerify !== false) checkScope(argumentz, expectedCallerDepth, expectedCaller); }
             catch (_) { throw _; }
             addSafeScope.registered[expectedCaller] = expectedCallerDepth
@@ -15,26 +16,26 @@
 
         addSafeScope.registered = {};
 
-        var checkScope = function (argumentzcallee) {
+        var checkScope = function () {
             try {
-                var caller = argumentzcallee || arguments.callee || undefined,
-                stackPointer = undefined,
+                var stackPointer = undefined,
                 cycle = -1;
-
-                if (!caller) throw 'Missing callee/caller in checkScope';
-
                 //Iterate all registered
                 for (var r in addSafeScope.registered) {
                     //If there is a registered caller and it is equal to the expectedCaller then ensure the cyclic depth is also correct
                     if (addSafeScope.registered.hasOwnProperty(r)) {
                         cycle = addSafeScope.registered[r];
+                        stackPointer = arguments.callee;
                         while (cycle >= 0) {
-                            stackPointer = caller.caller;
+                            stackPointer = stackPointer.caller;
                             cycle--;
+                            if (stackPointer == r) return;
                         }
-                        if (stackPointer === expectedCaller) return;
+
                     }
                 }
+
+                //Throw
                 throw new Error('Invalid expectedCaller at expectedCallerDepth');
             }
             catch (_) { throw _; }
@@ -69,14 +70,9 @@
 
         //This verification is ugly... the proper way to do this is to have a list of allowed entry points and do a compare on the caller chain to all of the qualified safe entry points
         function $isCLR() {
-            try { checkScope(arguments.callee); if (this === extern && !this instanceof newScope) return false; }
+            try { checkScope(); return true; }
             catch (e) {
-                return e === 'Function expected' ?
-                arguments.callee == Function.apply :
-                    arguments.callee.caller.caller.caller == Class && arguments.callee.caller.caller == Function.prototype.apply ? true :
-                        arguments.callee.caller.caller.caller.caller === $subclass ? true :
-                            arguments.callee.caller.caller.caller.caller === $cast ? true :
-                                arguments.callee.caller.caller === Function.prototype.apply ? true : false; //IE7
+                return false;
             }
             return this === newScope;
         }
@@ -141,8 +137,8 @@
             }
         }
 
-        if (!Object.prototype.forEach) {
-            Object.prototype.forEach = function (object, fn, bind) {
+        if (!Object.forEach) {
+            Object.forEach = function (object, fn, bind) {
                 for (var key in object) {
                     if (Object.hasOwnProperty(object, key)) fn.call(bind, object[key], key, object);
                 }
@@ -308,7 +304,7 @@
 
                 //Create value proxy object
                 var valueProxy = {
-                    valueOf: function() { return getterSetter(arguments); },
+                    valueOf: function () { return getterSetter(arguments); },
                     toString: function () { return this.valueOf().toString(); }
                 }
 
