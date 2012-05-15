@@ -140,8 +140,9 @@
             }
 
             var outputElement = document.getElementById('output');
-            if (outputElement && outputElement.textContent) outputElement.textContent = outputString;
-            else if (outputElement && outputElement.innerText) outputElement.innerText = outputString;
+            if(outputElement) if (outputElement.textContent) outputElement.textContent = outputString;
+            else if (outputElement.innerText) outputElement.innerText = outputString;
+            delete outputElement;
         }
 
         function init()
