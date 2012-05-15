@@ -1,9 +1,37 @@
 ﻿~function (extern, REBUILD_CLR) {
 
-    return CollectGarbage && CollectGarbage.toString() === 'GC' && !REBUILD_CLR ? undefined : new (function () {
+    return (typeof CollectGarbadge === 'undefined' && Boolean(REBUILD_CLR) === true) ? undefined : new (function () {
 
         //.Net JavaScript (this should be a new scope)
         var newScope = this;
+
+       
+
+        // Method: Export 
+        // Description: The Export function takes the given what and puts it where (optionally as 'as')
+        function $Export(what, where/*, as*/) {
+            if (!what && !where) return;
+            var as = arguments[2] || what; //Might make this call toString and check for undefined;
+            $Export.exported[as] = where;
+            where[as] = what;
+        }
+
+        $Export.exported = {};
+
+        //Export Export to the window as export
+        $Export($Export, window, 'Export');
+
+        //Removes the given object from the exports if it was exported
+        $Export.remove = function (what) {
+            //Enumerate exported members
+            for (var t in $Export.exported) // t is type or typeName
+            //If there is a member with the same type name as what
+                if ($Export.exported.hasOwnProperty(t)) {
+                    //Express the typename to get where it was exported to and delete it as well as the Export entry
+                    delete ($Export.exported[t])[t]
+                    delete $Export.exported[t];
+                }
+        }        
 
         //This verification is ugly... the proper way to do this is to have a list of allowed entry points and do a compare on the caller chain to all of the qualified safe entry points
         function $isCLR() {
@@ -17,8 +45,16 @@
             return this === newScope;
         }
 
+        //Export $isCLR as isCLR
+        Export($isCLR, window, 'isCLR');
+
+        //Checks for CLR Scope
         function $checkCLR() { if (!isCLR()) throw 'The CLR is required to access this scope'; }
 
+        //Export $checkCLR as checkCLR
+        Export($checkCLR, window, 'checkCLR');
+
+        //Backup the old apply function
         var Function$prototype$apply = Function.prototype.apply;
 
         //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
@@ -28,13 +64,13 @@
 
         Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class(Object.prototype._constructor); }
 
+        //Backup GarbadgeCollector
+        var _CollectGarbadge = typeof CollectGarbage === 'undefined' ? undefined : CollectGarbage;
+
         //Garbadge Collector
         function GC() { CollectGarbage(); }
         GC.toString = function () { return 'GC' }
         GC.$abstract = true;
-
-        //Backup GarbadgeCollector
-        var _CollectGarbadge = CollectGarbage;
 
         //Replace
         CollectGarbage = GC;
@@ -42,35 +78,8 @@
         //Hash of known Object, Handles with a live timeOut
         GC.timeOuts = {};
 
-        // Method: Export 
-        // Description: The Export function takes the given what and puts it where (optionally as 'as')
-        function Export(what, where/*, as*/) {
-            if (!what && !where) return;
-            var as = arguments[2] || what; //Might make this call toString and check for undefined;
-            Export.exported[as] = where;
-            where[as] = what;
-        }
-
-        Export.exported = {};
-
-        Export.remove = function (what) {
-            //Enumerate exported members
-            for (var t in Export.exported) // t is type or typeName
-            //If there is a member with the same type name as what
-                if (Export.exported.hasOwnProperty(t)) {
-                    //Express the typename to get where it was exported to and delete it as well as the Export entry
-                    delete (Export.exported[t])[t]
-                    delete Export.exported[t];
-                }
-        }
-
-        Export(GC, window, 'GC');
-
-        Export($isCLR, window, 'isCLR');
-        Export($checkCLR, window, 'checkCLR');
-
-        //Export Export to the window as export
-        Export(Export, window, 'Export');
+        //Export GC
+        $Export(GC, window, 'CollectGarbadge');
 
         //Gets the Type name from the Constructor given (Native/Declared Types Only)
         function $getTypeName(type) { try { type = type || this.GetTypeName(); return type.toString().split(' ')[1].replace('()', ''); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
@@ -271,18 +280,18 @@
                         var z = subclass.linker[t];
                         //Enumerate constructor (looking for nested exports)
                         for (var T in z) if (z.hasOwnProperty(T)) {
-                            Export.remove(subclass.linker[T]); //Remove the exports to the constructor
+                            $Export.remove(subclass.linker[T]); //Remove the exports to the constructor
                             delete subclass.linker[T] // Remove the constructor
-                            Export.remove(z[T]); //Remove any exports of the constructor link reference
+                            $Export.remove(z[T]); //Remove any exports of the constructor link reference
                             delete z[T]; //Remove the constructor link reference
                         }
                         //Remove the exports
-                        Export.remove(z);
+                        $Export.remove(z);
                         //Delete the link
                         delete z;
                     }
                     //Remove the exports
-                    Export.remove(subclass.linker[t]);
+                    $Export.remove(subclass.linker[t]);
                     //Delete the link
                     delete subclass.linker[t];
                 }
