@@ -159,7 +159,6 @@
             };
         }
 
-
         //Backup GarbadgeCollector
         var _CollectGarbadge = typeof CollectGarbage === 'undefined' ? undefined : CollectGarbage;
 
@@ -224,7 +223,7 @@
             //Freeze the object
             function freeze(object) { return ice(object); }
 
-            function isFrozen(object) { return freeze.freezer[object]; }
+            function isFrozen(object) { return freeze.freezer[object] === true; }
 
             //Memory for frozen objects
             freeze.freezer = {}
