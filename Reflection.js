@@ -192,7 +192,7 @@
     //Possibly should contain ParameterInfo for returned arguments
     Reflection.getArguments = function (func) { return new ParameterInfo(func); }
 
-    $export(Reflection, window, 'reflection');
+    Export(Reflection, window, 'reflection');
 
     //Function.prototype.getArguments = function () { return Reflection.getArguments(this); }
 

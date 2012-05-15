@@ -1,6 +1,6 @@
 ﻿~function (extern, REBUILD_CLR) {
 
-    return CollectGarbage.toString() === 'GC' && !REBUILD_CLR ? undefined : new (function () {
+    return CollectGarbage && CollectGarbage.toString() === 'GC' && !REBUILD_CLR ? undefined : new (function () {
 
         //.Net JavaScript (this should be a new scope)
         var newScope = this;
@@ -42,35 +42,35 @@
         //Hash of known Object, Handles with a live timeOut
         GC.timeOuts = {};
 
-        // Method: $Export 
+        // Method: Export 
         // Description: The Export function takes the given what and puts it where (optionally as 'as')
-        function $Export(what, where/*, as*/) {
+        function Export(what, where/*, as*/) {
             if (!what && !where) return;
             var as = arguments[2] || what; //Might make this call toString and check for undefined;
-            $Export.exported[as] = where;
+            Export.exported[as] = where;
             where[as] = what;
         }
 
-        $Export.exported = {};
+        Export.exported = {};
 
-        $Export.remove = function (what) {
+        Export.remove = function (what) {
             //Enumerate exported members
-            for (var t in $Export.exported) // t is type or typeName
+            for (var t in Export.exported) // t is type or typeName
             //If there is a member with the same type name as what
-                if ($Export.exported.hasOwnProperty(t)) {
+                if (Export.exported.hasOwnProperty(t)) {
                     //Express the typename to get where it was exported to and delete it as well as the Export entry
-                    delete ($Export.exported[t])[t]
-                    delete $Export.exported[t];
+                    delete (Export.exported[t])[t]
+                    delete Export.exported[t];
                 }
         }
 
-        $Export(GC, window, 'GC');
+        Export(GC, window, 'GC');
 
-        $Export($isCLR, window, 'isCLR');
-        $Export($checkCLR, window, 'checkCLR');
+        Export($isCLR, window, 'isCLR');
+        Export($checkCLR, window, 'checkCLR');
 
-        //Export $Export to the window as export
-        $Export($Export, window, '$export');
+        //Export Export to the window as export
+        Export(Export, window, 'Export');
 
         //Gets the Type name from the Constructor given (Native/Declared Types Only)
         function $getTypeName(type) { try { type = type || this.GetTypeName(); return type.toString().split(' ')[1].replace('()', ''); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
@@ -79,13 +79,13 @@
         function $isNewObject(object) { return object.toString() === '[object Object]'; }
 
         //Export $getTypeName to the window as GetTypeName
-        $export($getTypeName, window, 'GetTypeName');
+        Export($getTypeName, window, 'GetTypeName');
 
         //Is function
         function $Is(what, type) { try { return what instanceof type || (typeof what).toString().toLocaleLowerCase() === $getTypeName(type).toLocaleLowerCase(); } catch (_) { return false; } }
 
         //Export $Is to the window as Is
-        $export($Is, window, 'Is');
+        Export($Is, window, 'Is');
 
         //As
         function $As(what, type) { try { return new type(what); } catch (_) { return $cast(what, type); } }
@@ -94,7 +94,7 @@
         Object.as = $As;
 
         //Export $Is to the window as Is
-        $export($Is, window, 'Is');
+        Export($Is, window, 'Is');
 
         //Export to static
         Object.is = $Is;
@@ -258,7 +258,7 @@
         //Memory for the pseudo type system
         subclass.linker = {};
 
-        $Export(subclass, window, 'subclass');
+        Export(subclass, window, 'subclass');
 
         window.addEventListener('unload', function () {
             //For each type in the linker
@@ -271,18 +271,18 @@
                         var z = subclass.linker[t];
                         //Enumerate constructor (looking for nested exports)
                         for (var T in z) if (z.hasOwnProperty(T)) {
-                            $Export.remove(subclass.linker[T]); //Remove the exports to the constructor
+                            Export.remove(subclass.linker[T]); //Remove the exports to the constructor
                             delete subclass.linker[T] // Remove the constructor
-                            $Export.remove(z[T]); //Remove any exports of the constructor link reference
+                            Export.remove(z[T]); //Remove any exports of the constructor link reference
                             delete z[T]; //Remove the constructor link reference
                         }
                         //Remove the exports
-                        $Export.remove(z);
+                        Export.remove(z);
                         //Delete the link
                         delete z;
                     }
                     //Remove the exports
-                    $Export.remove(subclass.linker[t]);
+                    Export.remove(subclass.linker[t]);
                     //Delete the link
                     delete subclass.linker[t];
                 }
@@ -327,8 +327,8 @@
         baseClass.toString = function () { return /*'[object Class */'baseClass'/*]'*/; };
 
         //Export Defined Classes for Unit Tests and make pseudo keyword 'abstract'
-        $Export(baseClass, window, '$abstract');
-        $Export(baseClass, window);
+        Export(baseClass, window, '$abstract');
+        Export(baseClass, window);
 
         //The Class which represents classes
         //The Mother of All Mother Functions
@@ -356,7 +356,7 @@
         Class.toString = function () { return /*'[object */'Class'/*]'*/; };
         Class.cast = Function.prototype.cast;
 
-        $Export(Class, window);
+        Export(Class, window);
 
         //Method: using
         //Description: Allows using of disposable objects
@@ -385,7 +385,7 @@
 
         }
 
-        $Export($using, window, 'using');
+        Export($using, window, 'using');
 
         //The CLRObject which will be the base class of all classes going forward
         function CLRObject() {
@@ -421,7 +421,7 @@
         //Ensure instanceof works correctly
         subclass(myClass, baseClass);
 
-        $Export(myClass, window);
+        Export(myClass, window);
 
         //Derived class from myClass
         function anotherClass() {
@@ -446,7 +446,7 @@
         //Ensure instanceof works correctly
         subclass(anotherClass, myClass);
 
-        $Export(anotherClass, window);
+        Export(anotherClass, window);
 
         //This is maybe not the best place
         function $cast(type, call) {
@@ -455,7 +455,7 @@
             return call.bind(new type(this)).call(this);
         }
 
-        $Export($cast, window, 'cast');
+        Export($cast, window, 'cast');
 
         //Probably not needed
         var $Function$prototype$call = Function.prototype.call;

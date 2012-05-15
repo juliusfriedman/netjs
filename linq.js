@@ -1855,7 +1855,7 @@ Enumerable = (function () {
         Function: typeof function () { }
     }
 
-    $export(Types, window, 'Types');
+    Export(Types, window, 'Types');
 
     // static utility methods
     var Utils =
