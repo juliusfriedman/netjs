@@ -9,9 +9,10 @@
         addSafeScope = function (argumentz, expectedCallerDepth, expectedCaller/*,Boolean noVerify = false*/) {
             var noVerify = arguments[3] || false;
             if (noVerify === false) expectedCallerDepth += 2; //Protect against CLR Checks unless noVerify is given
-            try { if (noVerify !== false) checkScope(argumentz, expectedCallerDepth, expectedCaller); }
+            try { if (noVerify !== false) checkScope(); }
             catch (_) { throw _; }
-            addSafeScope.registered[expectedCaller] = expectedCallerDepth
+            if (typeof addSafeScope.registered[expectedCaller] === 'undefined') addSafeScope.registered[expectedCaller] = expectedCallerDepth //This allow patch in and multiple callers
+            else addSafeScope.registered[expectedCaller] += expectedCallerDepth;
         }
 
         addSafeScope.registered = {};
@@ -117,6 +118,8 @@
                 return bound;
             }
             /*</!ES5-bind>*/
+            addSafeScope(Function.prototype.call, 2, Function.prototype.bind);
+            addSafeScope(Function.prototype.bind, 2, Function.prototype.apply);
         }
 
         if (!Array.prototype.indexOf) {
@@ -173,7 +176,18 @@
         $Export($CollectGarbadge, window, 'CollectGarbadge');
 
         //Gets the Type name from the Constructor given (Native/Declared Types Only)
-        function $getTypeName(type) { try { type = type || this.GetTypeName(); var result = type.toString().split(' ')[1]; type = type.substr(0, type.indexOf('(')); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
+        function $getTypeName(type) {
+            try {
+                type = typeof type !== 'undefined' ? type : this.GetTypeName();
+                if (!(typeof type === 'string' || type instanceof String)) {
+                    var result = type.toString().split(' ')[1];
+                    result = result.toString().substring(0, result.indexOf('(')); return result;
+                    return result;
+                }
+                throw new Error();
+            }
+            catch (_) { return type; }
+        }; //0 = function, 1 = name and  so on => {, [native code], }
 
         //Allows a constructor to determine if new was called
         function $isNewObject(object) { return object.toString() === '[object Object]'; }
@@ -182,7 +196,13 @@
         Export($getTypeName, window, 'GetTypeName');
 
         //Is function
-        function $Is(what, type) { try { return what instanceof type || (typeof what).toString().toLocaleLowerCase() === $getTypeName(type).toLocaleLowerCase(); } catch (_) { return false; } }
+        function $Is(what, type) {
+            try {
+                if (typeof what === $getTypeName(type).toLowerCase()) return true;
+                else return what instanceof type;
+            }
+            catch (_) { return false; }
+        }
 
         //Export $Is to the window as Is
         Export($Is, window, 'Is');
@@ -477,6 +497,7 @@
         Class.toString = function () { return /*'[object */'Class'/*]'*/; };
         Class.cast = Function.prototype.cast;
 
+        //Export Class keyword to the window
         Export(Class, window);
 
         addSafeScope(Class, 1, Function.prototype.apply);
