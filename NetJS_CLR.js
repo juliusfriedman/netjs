@@ -301,15 +301,19 @@
                     enforceType: descriptor.enforceType || false,
                     get: descriptor.get ? descriptor.get : function () { return legacyGet(object, name, descriptor); } .bind(object),
                     set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(object, name, descriptor, value); } .bind(object) : function () { }
-                }
-                //Assign property
-                object[name] = descriptor.value;
+                };
 
-                //Create getter / setter
-                var getterSetter = function (value) { return (!value || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
+                //Create getter / setter - might need to do a call scan to determine if this is an assignment
+                var getterSetter = function (value) { return (typeof value === 'undefined' || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
+
+                //Create value proxy object
+                var valueProxy = {
+                    valueOf: function() { return getterSetter(arguments); },
+                    toString: function () { return this.valueOf().toString(); }
+                }
 
                 //Store on object if enumerable
-                if (descriptor.enumerable) object[name] = getterSetter;
+                if (descriptor.enumerable) object[name] = valueProxy;
 
                 //Store in descriptor hash
                 descriptorHash[object] = {};
