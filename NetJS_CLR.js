@@ -75,7 +75,8 @@
                 arguments.callee == Function.apply :
                     arguments.callee.caller.caller.caller == Class && arguments.callee.caller.caller == Function.prototype.apply ? true :
                         arguments.callee.caller.caller.caller.caller === $subclass ? true :
-                            arguments.callee.caller.caller.caller.caller === $cast ? true : false;
+                            arguments.callee.caller.caller.caller.caller === $cast ? true :
+                                arguments.callee.caller.caller === Function.prototype.apply ? true : false; //IE7
             }
             return this === newScope;
         }
@@ -98,6 +99,66 @@
         //Object.prototype._constructor = Object.prototype.constructor;
 
         Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class({}); }
+
+        if (!Function.prototype.bind) {
+            /*<!ES5-bind>*/
+            Function.prototype.bind = function (that) {
+                var self = this,
+			args = arguments.length > 1 ? Array.slice(arguments, 1) : null,
+			F = function () { };
+
+                var bound = function () {
+                    var context = that, length = arguments.length;
+                    if (this instanceof bound) {
+                        F.prototype = self.prototype;
+                        context = new F;
+                    }
+                    var result = (!args && !length)
+				? self.call(context)
+				: self.apply(context, args && length ? args.concat(Array.slice(arguments)) : args || arguments);
+                    return context == that ? result : context;
+                };
+                return bound;
+            }
+            /*</!ES5-bind>*/
+        }
+
+        if (!Array.prototype.indexOf) {
+            Array.prototype.indexOf = function (item, from) {
+                var length = this.length >>> 0;
+                for (var i = (from < 0) ? Math.max(0, length + from) : from || 0; i < length; i++) {
+                    if (this[i] === item) return i;
+                }
+                return -1;
+            }
+        }
+
+        if (!Array.prototype.forEach) {
+            Array.prototype.forEach = function (fn, bind) {
+                for (var i = 0, l = this.length; i < l; i++) {
+                    if (i in this) fn.call(bind, this[i], i, this);
+                }
+            }
+        }
+
+        if (!Object.prototype.forEach) {
+            Object.prototype.forEach = function (object, fn, bind) {
+                for (var key in object) {
+                    if (Object.hasOwnProperty(object, key)) fn.call(bind, object[key], key, object);
+                }
+            }
+        }
+
+        if (!Object.keys) {
+            Object.keys = function (that) {
+                var results = [];
+                for (var p in that)
+                    if (that.hasOwnProperty(p))
+                        results.push(that.p);
+                return results;
+            };
+        }
+
 
         //Backup GarbadgeCollector
         var _CollectGarbadge = typeof CollectGarbage === 'undefined' ? undefined : CollectGarbage;
@@ -215,7 +276,7 @@
             function setDescriptor(object, property, newDescriptor) {
                 if (!object || !property) return;
                 var existing = descriptorHash[object][property];
-                if (existing && !existing.configurable) return;
+                if (existing && !existing.configurable) throw 'Cannot modify the existing descriptor for the non-configurable property: "' + property + '"';
                 defineProperty(object, name, newDescriptor || {
                     enumerable: newDescriptor.enumerable || false,
                     writeable: newDescriptor.writeable || false,
@@ -232,6 +293,7 @@
             //Adds a property to an object with getter, setter and descriptor support
             function defineProperty(object, name, descriptor) {
                 if (!object || !name) return;
+                if (typeof descriptor.value !== 'undefined' && typeof descriptor.get !== 'undefined') throw 'Descriptor cannot contain a value and a getter';
                 descriptor = {
                     enumerable: descriptor.enumerable || false,
                     writeable: descriptor.writeable || false,
@@ -241,21 +303,18 @@
                     get: descriptor.get ? descriptor.get : function () { return legacyGet(object, name, descriptor); } .bind(object),
                     set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(object, name, descriptor, value); } .bind(object) : function () { }
                 }
-                if (Object.defineProperty) return Object.defineProperty(object, name, descriptor);
-                else {
-                    //Assign property
-                    object[name] = descriptor.value;
+                //Assign property
+                object[name] = descriptor.value;
 
-                    //Create getter / setter
-                    var getterSetter = function (value) { return (!value || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
+                //Create getter / setter
+                var getterSetter = function (value) { return (!value || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
 
-                    //Store on object if enumerable
-                    if (descriptor.enumerable) object[name] = getterSetter;
+                //Store on object if enumerable
+                if (descriptor.enumerable) object[name] = getterSetter;
 
-                    //Store in descriptor hash
-                    descriptorHash[object] = {};
-                    descriptorHash[object][name] = descriptor;
-                }
+                //Store in descriptor hash
+                descriptorHash[object] = {};
+                descriptorHash[object][name] = descriptor;
             }
 
             //Augment Object
@@ -308,8 +367,20 @@
         $subclass.linker = {};
 
         Export($subclass, window, 'subclass');
-        
-        addSafeScope(Class, 3, $subclass);        
+
+        addSafeScope(Class, 3, $subclass);
+
+        if (typeof window.addEventListener === 'undefined') {
+            /*<ltIE9>*/
+            if (window.attachEvent && !window.addEventListener) {
+                var unloadEvent = function () {
+                    window.detachEvent('onunload', unloadEvent);
+                    document.head = document.html = document.window = null;
+                } .bind(window);
+                window.attachEvent('onunload', unloadEvent);
+                window.addEventListener = window.attachEvent;
+            }
+        }
 
         window.addEventListener('unload', function () {
             //For each type in the linker
@@ -527,7 +598,7 @@
                 var actual = new Function(args);
                 return actual.call();
             }
-        }        
+        }
 
     })();
 
