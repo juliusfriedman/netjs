@@ -3,7 +3,42 @@
     return (typeof CollectGarbadge === 'undefined' && Boolean(REBUILD_CLR) === true) ? undefined : new (function () {
 
         //.Net JavaScript (this should be a new scope)
-        var newScope = this;
+        var newScope = this,
+
+        //Security
+        addSafeScope = function (argumentz, expectedCallerDepth, expectedCaller/*,Boolean noVerify = false*/) {
+            var noVerify = arguments[3] || false;
+            try { if (noVerify !== false) checkScope(argumentz, expectedCallerDepth, expectedCaller); }
+            catch (_) { throw _; }
+            addSafeScope.registered[expectedCaller] = expectedCallerDepth
+        }
+
+        addSafeScope.registered = {};
+
+        var checkScope = function (argumentzcallee) {
+            try {
+                var caller = argumentzcallee || arguments.callee || undefined,
+                stackPointer = undefined,
+                cycle = -1;
+
+                if (!caller) throw 'Missing callee/caller in checkScope';
+
+                //Iterate all registered
+                for (var r in addSafeScope.registered) {
+                    //If there is a registered caller and it is equal to the expectedCaller then ensure the cyclic depth is also correct
+                    if (addSafeScope.registered.hasOwnProperty(r)) {
+                        cycle = addSafeScope.registered[r];
+                        while (cycle >= 0) {
+                            stackPointer = caller.caller;
+                            cycle--;
+                        }
+                        if (stackPointer === expectedCaller) return;
+                    }
+                }
+                throw new Error('Invalid expectedCaller at expectedCallerDepth');
+            }
+            catch (_) { throw _; }
+        }
 
         // Method: Export 
         // Description: The Export function takes the given what and puts it where (optionally as 'as')
@@ -34,12 +69,13 @@
 
         //This verification is ugly... the proper way to do this is to have a list of allowed entry points and do a compare on the caller chain to all of the qualified safe entry points
         function $isCLR() {
-            try { if (!this instanceof newScope) return false; }
+            try { checkScope(arguments.callee); if (this === extern && !this instanceof newScope) return false; }
             catch (e) {
                 return e === 'Function expected' ?
                 arguments.callee == Function.apply :
                     arguments.callee.caller.caller.caller == Class && arguments.callee.caller.caller == Function.prototype.apply ? true :
-                    arguments.callee.caller.caller.caller.caller === subclass ? true : arguments.callee.caller.caller.caller.caller === cast ? true : false;
+                        arguments.callee.caller.caller.caller.caller === $subclass ? true :
+                            arguments.callee.caller.caller.caller.caller === $cast ? true : false;
             }
             return this === newScope;
         }
@@ -48,7 +84,7 @@
         Export($isCLR, window, 'isCLR');
 
         //Checks for CLR Scope
-        function $checkCLR() { if (!isCLR()) throw 'The CLR is required to access this scope'; }
+        function $checkCLR() { if (!$isCLR()) throw 'The CLR is required to access this scope'; }
 
         //Export $checkCLR as checkCLR
         Export($checkCLR, window, 'checkCLR');
@@ -57,7 +93,7 @@
         var Function$prototype$apply = Function.prototype.apply;
 
         //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
-        Function.prototype.apply = function () { checkCLR(); return Function$prototype$apply; }
+        Function.prototype.apply = function () { $checkCLR(); return Function$prototype$apply; }
 
         //Object.prototype._constructor = Object.prototype.constructor;
 
@@ -81,7 +117,7 @@
         $Export($CollectGarbadge, window, 'CollectGarbadge');
 
         //Gets the Type name from the Constructor given (Native/Declared Types Only)
-        function $getTypeName(type) { try { type = type || this.GetTypeName(); return type.toString().split(' ')[1].replace('()', ''); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
+        function $getTypeName(type) { try { type = type || this.GetTypeName(); var result = type.toString().split(' ')[1]; type = type.substr(0, type.indexOf('(')); } catch (_) { throw _; } }; //0 = function, 1 = name and  so on => {, [native code], }
 
         //Allows a constructor to determine if new was called
         function $isNewObject(object) { return object.toString() === '[object Object]'; }
@@ -238,25 +274,25 @@
         //http://www.golimojo.com/etc/js-subclass.html
         //Modified for netjs by Julius Friedman
         //Description: Helps interpreterd code to function correctly after compile with respect to instanceof
-        function subclass(constructor, derivedConstructor) {
+        function $subclass(constructor, derivedConstructor) {
 
             $checkSealed(constructor, derivedConstructor);
 
             var linkedName = '_type_' + derivedConstructor.toString() + '_^_' + constructor.toString(),
                 isInstance = $isNewObject(constructor);
 
-            if (subclass.linker[linkedName] && subclass.linker[linkedName].constructor === constructor) return derivedConstructor;
+            if ($subclass.linker[linkedName] && $subclass.linker[linkedName].constructor === constructor) return derivedConstructor;
 
             if (constructor.$abstract && !derivedConstructor) abstractConstructor(constructor);
 
-            var surrogateConstructor = subclass.linker['_ctor_' + linkedName + '_^_SurrogateConstructor'] = function () { return constructor.apply ? constructor.apply(derivedConstructor) : undefined; }
+            var surrogateConstructor = $subclass.linker['_ctor_' + linkedName + '_^_SurrogateConstructor'] = function () { return constructor.apply ? constructor.apply(derivedConstructor) : undefined; }
 
             //Todo
             //Check for Disposable and implement unload?
 
             surrogateConstructor.prototype = derivedConstructor.prototype;
 
-            var prototypeObject = subclass.linker[linkedName] = new surrogateConstructor();
+            var prototypeObject = $subclass.linker[linkedName] = new surrogateConstructor();
             prototypeObject.constructor = constructor;
 
             constructor.prototype = prototypeObject;
@@ -269,23 +305,25 @@
         }
 
         //Memory for the pseudo type system
-        subclass.linker = {};
+        $subclass.linker = {};
 
-        Export(subclass, window, 'subclass');
+        Export($subclass, window, 'subclass');
+        
+        addSafeScope(Class, 3, $subclass);        
 
         window.addEventListener('unload', function () {
             //For each type in the linker
-            for (var t in subclass.linker) {
+            for (var t in $subclass.linker) {
                 //If there is a type in the linker with the name t
-                if (subclass.linker.hasOwnProperty(t)) {
+                if ($subclass.linker.hasOwnProperty(t)) {
                     //If the t is a constructor
-                    if (!subclass.linker[t] instanceof Function || typeof subclass.linker[t] === 'function') {
+                    if (!$subclass.linker[t] instanceof Function || typeof $subclass.linker[t] === 'function') {
                         //Buffer
-                        var z = subclass.linker[t];
+                        var z = $subclass.linker[t];
                         //Enumerate constructor (looking for nested exports)
                         for (var T in z) if (z.hasOwnProperty(T)) {
-                            $Export.remove(subclass.linker[T]); //Remove the exports to the constructor
-                            delete subclass.linker[T] // Remove the constructor
+                            $Export.remove($subclass.linker[T]); //Remove the exports to the constructor
+                            delete $subclass.linker[T] // Remove the constructor
                             $Export.remove(z[T]); //Remove any exports of the constructor link reference
                             delete z[T]; //Remove the constructor link reference
                         }
@@ -295,13 +333,13 @@
                         delete z;
                     }
                     //Remove the exports
-                    $Export.remove(subclass.linker[t]);
+                    $Export.remove($subclass.linker[t]);
                     //Delete the link
-                    delete subclass.linker[t];
+                    delete $subclass.linker[t];
                 }
             }
-            delete subclass.linker;
-            subclass = null;
+            delete $subclass.linker;
+            $subclass = null;
 
             //Should remove class memory also
             Class = null;
@@ -351,11 +389,11 @@
         //And none of them are even relevant...
         //NOW I JUST HAVE TO FIGURE OUT HOW TO GET CONSTRUCTOR CHAINING TO WORK!!!! UGH!
 
-        //If the base class is abstract return the reference to it otherwise return the reference to the result of subclass given this instance and the baseClass
+        //If the base class is abstract return the reference to it otherwise return the reference to the result of $subclass given this instance and the baseClass
         function Class(base) {
             Object.defineProperty(this, '__TypeName', { value: base.__TypeName }); // Ensure the __TypeName is present
             Object.defineProperty(this, 'base', { value: base }); // Ensure the base keyword works in the scope
-            subclass(this, base); // Subclass all classes
+            $subclass(this, base); // $subclass all classes
 
             //Function to return the TypeName member
             //this.GetTypeName = function () { return this.__TypeName; }
@@ -364,12 +402,15 @@
 
             CLRObject.apply(this);
 
-            return base.$abstract ? base.apply(this) : subclass(this, base); // Return the base constructor
+            return base.$abstract ? base.apply(this) : $subclass(this, base); // Return the base constructor
         }
         Class.toString = function () { return /*'[object */'Class'/*]'*/; };
         Class.cast = Function.prototype.cast;
 
         Export(Class, window);
+
+        addSafeScope(Class, 1, Function.prototype.apply);
+        addSafeScope(Class, 4, $cast);
 
         //Method: using
         //Description: Allows using of disposable objects
@@ -432,7 +473,7 @@
         myClass.toString = function () { return /*'[object baseClass */'myClass'/*]'*/; };
 
         //Ensure instanceof works correctly
-        subclass(myClass, baseClass);
+        $subclass(myClass, baseClass);
 
         Export(myClass, window);
 
@@ -457,7 +498,7 @@
         anotherClass.toString = function () { return /*'[object myClass */'anotherClass'/*]'*/; };
 
         //Ensure instanceof works correctly
-        subclass(anotherClass, myClass);
+        $subclass(anotherClass, myClass);
 
         Export(anotherClass, window);
 
@@ -486,7 +527,7 @@
                 var actual = new Function(args);
                 return actual.call();
             }
-        }
+        }        
 
     })();
 

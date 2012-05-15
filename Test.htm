@@ -135,12 +135,13 @@
             if (selList.Count() !== 2 || anotherList.Count() !== 2 || yetAnotherList.Count() !== 2 || finalList.Count() !== 0) alert('Bug');
 
             var outputString = '';
-            for (var index = 0; index < selList.Count(); index++)
+            for (var index = 0; index < selList.Count(); index++) {
                 outputString += selList.ElementAt(index).model + '\r\n';
+            }
 
             var outputElement = document.getElementById('output');
-            if (outputElement)
-                outputElement.innerText = outputString;
+            if (outputElement && outputElement.textContent) outputElement.textContent = outputString;
+            else if (outputElement && outputElement.innerText) outputElement.innerText = outputString;
         }
 
         function init()
