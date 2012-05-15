@@ -72,10 +72,8 @@
         //This verification is ugly... the proper way to do this is to have a list of allowed entry points and do a compare on the caller chain to all of the qualified safe entry points
         function $isCLR() {
             try { checkScope(); return true; }
-            catch (e) {
-                return false;
-            }
-            return this === newScope;
+            catch (_) { return false; }
+            return this === newScope; //Should never happen unless ...
         }
 
         //Export $isCLR as isCLR
@@ -91,33 +89,36 @@
         var Function$prototype$apply = Function.prototype.apply;
 
         //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
-        Function.prototype.apply = function () { $checkCLR(); return Function$prototype$apply; }
+        Function.prototype.apply = function () {
+            $checkCLR();
+            try { return Function$prototype$apply(arguments, this); }
+            catch (_) { return Function$prototype$apply; }
+        }
 
         //Object.prototype._constructor = Object.prototype.constructor;
 
         Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class({}); }
 
-        if (!Function.prototype.bind) {
-            /*<!ES5-bind>*/
-            Function.prototype.bind = function (that) {
-                var self = this,
-			args = arguments.length > 1 ? Array.slice(arguments, 1) : null,
-			F = function () { };
+        if (navigator.userAgent.indexOf('8.') !== -1) {
+            //Backup prototype
+            var Object$prototyoe = Object.prototype;
+            //Set the prototype to the Element Constructor
+            Object.prototype = document.createElement;
+            //Backup defineProperty cause IE8 has it but only is valid for Elements.
+            var Object$defineProperty = Object.defineProperty;
+            //Undefine defineProperty
+            Object.defineProperty = undefined;
+        }
 
-                var bound = function () {
-                    var context = that, length = arguments.length;
-                    if (this instanceof bound) {
-                        F.prototype = self.prototype;
-                        context = new F;
-                    }
-                    var result = (!args && !length)
-				? self.call(context)
-				: self.apply(context, args && length ? args.concat(Array.slice(arguments)) : args || arguments);
-                    return context == that ? result : context;
-                };
-                return bound;
+        if (!Function.prototype.bind) {
+            if (typeof (Function.prototype.bind) == 'undefined') {
+                Function.prototype.bind = function (context) {
+                    var oldRef = this;
+                    return function () {
+                        return oldRef.apply(context || null, Array.prototype.slice.call(arguments));
+                    };
+                }
             }
-            /*</!ES5-bind>*/
             addSafeScope(Function.prototype.call, 2, Function.prototype.bind);
             addSafeScope(Function.prototype.bind, 2, Function.prototype.apply);
         }
@@ -180,8 +181,10 @@
             try {
                 type = typeof type !== 'undefined' ? type : this.GetTypeName();
                 if (!(typeof type === 'string' || type instanceof String)) {
-                    var result = type.toString().split(' ')[1];
-                    result = result.toString().substring(0, result.indexOf('(')); return result;
+                    var result = type.toString().split(' ');
+                    if (result.length === 1) return result; // Qualified Type
+                    else result = result[1];
+                    result = result.toString().substring(0, result.indexOf('(')); return result; //Native
                     return result;
                 }
                 throw new Error();
@@ -268,7 +271,7 @@
         function $checkSealed(constructor, derivedConstructor) { if (Object.isSealed(constructor)) throw derivedConstructor.toString() + 'cannot inherit from sealed class' + constructor.toString() + '.'; };
 
         //Polyfill for defineProperty
-        if (!Object.defineProperty) {
+        if (typeof Object.defineProperty === 'undefined') {
             var descriptorHash = {};
 
             function legacyGet(object, property, descriptor) {
@@ -276,10 +279,14 @@
                 descriptor.get ? descriptor.get.bind(object)() : object[property];
             }
 
+            $Export(legacyGet, window, 'legacyGet');
+
             function legacySet(object, property, descriptor, value) {
                 if (!descriptor.writeable || (descriptor.enforceType && !(value instanceof descriptor.value))) return;
                 object[property] = value;
             }
+
+            $Export(legacyGet, window, 'legacySet')
 
             function legacyIterate(object) {
                 ///TODO
@@ -304,6 +311,9 @@
                 //Store last version
                 descriptorHash[object][property]._previous = existing;
             }
+
+            $Export(setDescriptor, window, 'setDescriptor');
+            
 
             //Adds a property to an object with getter, setter and descriptor support
             function defineProperty(object, name, descriptor) {
