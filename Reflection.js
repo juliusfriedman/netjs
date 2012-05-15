@@ -40,7 +40,8 @@
                 retVal = false, //Unused as of now
                 lookAhead = Lex(arguments[0]), //Get raw declarations
                 skipUntilIndex = -1,
-                _rawDefaultValue = undefined;
+                _rawDefaultValue = undefined,
+                _defaultValue = undefined;
 
 
             //Iterate raw declarations
@@ -48,6 +49,15 @@
 
                 //Allow look ahead
                 if (index < skipUntilIndex) return;
+
+                //Check for Type name preceeding parameter
+                for (var t in Types) if (raw === Types[t]) return;
+
+                //Optional values
+                if (inComment && raw === '=') {
+                    _defaultValue = new Function('return' + lookAhead[index + 1])();
+                    skipUntilIndex = index + 2;                    
+                }
 
                 //Determine if inside a comment (only /**/ style is supported for function arguments
                 inComment = raw.indexOf('*') !== -1 && raw.indexOf('//') !== -1;
@@ -67,9 +77,8 @@
                     retVal = true;
                 } else retVal = false;
 
-
                 //Determine values based on matches inter alia
-                results.Add(new ParameterInfo({
+                if (index < skipUntilIndex) results.Add(new ParameterInfo({
                     position: index,
                     name: raw,
                     parameterType: '', //ToDo with match
