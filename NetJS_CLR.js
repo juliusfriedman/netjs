@@ -42,13 +42,11 @@
             catch (_) { throw _; }
         }
 
-        function $cleanPrototype(object) {
-            //Cleanup instance prototype
-            for (var p in object) if (!object.hasOwnProperty(p)) delete object.p;
-        }
+        //Cleanup prototype
+        function $cleanPrototype(object) { for (var p in object) if (!object.hasOwnProperty(p)) delete object.p; }
 
         function $convertLegacyArguments(argumentz) {
-            if (!argumentz || argumentz[0] instanceof ParameterInfo ) return argumentz;
+            if (!argumentz || argumentz.length && argumentz[0] instanceof ParameterInfo) return argumentz;
             for (var i = 0, e = argumentz.length; i < e; ++i) {
                 argumentz[i] = new ParameterInfo({
                     position: i,
@@ -416,7 +414,7 @@
             $cleanPrototype(derivedConstructor);
 
             //Copy members if indicted
-            if (inheritMembers && isInstance && derivedConstructor.$inheritsMembers === true) for (var p in constructor) {                
+            if (inheritMembers && isInstance && derivedConstructor.$inheritsMembers === true) for (var p in constructor) {
                 //derivedConstructor.prototype.p = constructor.prototype.p; //Copy above
                 if (!p === 'prototype') derivedConstructor[p] = constructor[p]; //Copy local                
             }
