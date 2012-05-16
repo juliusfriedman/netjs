@@ -48,7 +48,7 @@
         }
 
         function $convertLegacyArguments(argumentz) {
-            if (!argumentz) return argumentz;
+            if (!argumentz || argumentz[0] instanceof ParameterInfo ) return argumentz;
             for (var i = 0, e = argumentz.length; i < e; ++i) {
                 argumentz[i] = new ParameterInfo({
                     position: i,
