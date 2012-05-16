@@ -421,8 +421,8 @@
                 if (!p === 'prototype') derivedConstructor[p] = constructor[p]; //Copy local                
             }
 
-            //Store __TypeName if this is not a instance because Class stored the __TypeName for Classes
-            if (!isInstance) Object.defineProperty(derivedConstructor, '__TypeName', {
+            //Store __TypeName
+            if (typeof derivedConstructor.__TypeName === 'undefined') Object.defineProperty(derivedConstructor, '__TypeName', {
                 get: function () { return linkedName; }
             });
 
@@ -593,7 +593,7 @@
         function myClass() {
 
             //Privates
-            var base = new Class(baseClass),
+            var base = Class(baseClass),
                 intValue = Number(0),
                 stringValue = String('');
 
