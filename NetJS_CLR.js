@@ -42,6 +42,27 @@
             catch (_) { throw _; }
         }
 
+        function $cleanPrototype(object) {
+            //Cleanup instance prototype
+            for (var p in object) if (!object.hasOwnProperty(p)) delete object.p;
+        }
+
+        function $convertLegacyArguments(argumentz) {
+            if (!argumentz) return argumentz;
+            for (var i = 0, e = argumentz.length; i < e; ++i) {
+                argumentz[i] = new ParameterInfo({
+                    position: i,
+                    value: argumentz[i],
+                    defaultValue: argumentz[i],
+                    rawDefaultValue: argumentz[i],
+                    parameterType: $getTypeName(argumentz[i]) || typeof argumentz[i],
+                    optional: false,
+                    name: argumentz[i].toString()
+                });
+            }
+            return argumentz;
+        }
+
         // Method: Export 
         // Description: The Export function takes the given what and puts it where (optionally as 'as')
         function $Export(what, where/*, as*/) {
@@ -69,6 +90,8 @@
                 }
         }
 
+        $Export($cleanPrototype, window, 'CleanPrototype');
+
         //This verification is ugly... the proper way to do this is to have a list of allowed entry points and do a compare on the caller chain to all of the qualified safe entry points
         function $isCLR() {
             try { checkScope(); return true; }
@@ -86,12 +109,12 @@
         Export($checkCLR, window, 'checkCLR');
 
         //Backup the old apply function
-        var Function$prototype$apply = Function.prototype.apply;
+        var Function$prototype$apply = Function.prototype.apply
 
         //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
         Function.prototype.apply = function () {
             $checkCLR();
-            try { return Function$prototype$apply(arguments, this); }
+            try { return Function$prototype$apply($convertLegacyArguments(arguments), this); }
             catch (_) { return Function$prototype$apply; }
         }
 
@@ -99,7 +122,8 @@
 
         Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class({}); }
 
-        if (navigator.userAgent.indexOf('8.') !== -1) {
+        /*<ltIE9>*/
+        if ((navigator.appVersion.indexOf('7.') !== -1 || navigator.appVersion.indexOf('8.') !== -1 && navigator.appVersion.indexOf('MSIE') !== -1)) {
             //Backup prototype
             var Object$prototyoe = Object.prototype;
             //Set the prototype to the Element Constructor
@@ -313,7 +337,7 @@
             }
 
             $Export(setDescriptor, window, 'setDescriptor');
-            
+
 
             //Adds a property to an object with getter, setter and descriptor support
             function defineProperty(object, name, descriptor) {
@@ -362,45 +386,58 @@
         //http://www.golimojo.com/etc/js-subclass.html
         //Modified for netjs by Julius Friedman
         //Description: Helps interpreterd code to function correctly after compile with respect to instanceof
-        function $subclass(constructor, derivedConstructor) {
+        function $subclass(constructor, derivedConstructor/*,Boolean inheritMembers = false*/) {
 
             $checkSealed(constructor, derivedConstructor);
 
-            var linkedName = '_type_' + derivedConstructor.toString() + '_^_' + constructor.toString(),
+            var inheritMembers = arguments[2] || false, linkedName = '_type_' + derivedConstructor.toString() + '_^_' + constructor.toString(),
                 isInstance = $isNewObject(constructor);
 
-            if ($subclass.linker[linkedName] && $subclass.linker[linkedName].constructor === constructor) return derivedConstructor;
+            if (!($subclass.linker[linkedName] && $subclass.linker[linkedName].constructor === constructor)) {
 
-            if (constructor.$abstract && !derivedConstructor) abstractConstructor(constructor);
+                //Note weather or not the derivedConstructor inherits the members of the base
+                derivedConstructor.$inheritsMembers = inheritMembers;
 
-            var surrogateConstructor = $subclass.linker['_ctor_' + linkedName + '_^_SurrogateConstructor'] = function () { return constructor.apply ? constructor.apply(derivedConstructor) : undefined; }
+                if (constructor.$abstract && !derivedConstructor) abstractConstructor(constructor);
 
-            //Todo
-            //Check for Disposable and implement unload?
+                var surrogateConstructor = $subclass.linker['_ctor_' + linkedName + '_^_SurrogateConstructor'] = function () { return constructor.apply ? constructor.apply(derivedConstructor) : undefined; }
 
-            surrogateConstructor.prototype = derivedConstructor.prototype;
+                //Todo
+                //Check for Disposable and implement unload?
 
-            var prototypeObject = $subclass.linker[linkedName] = new surrogateConstructor();
-            prototypeObject.constructor = constructor;
+                surrogateConstructor.prototype = derivedConstructor.prototype;
 
-            constructor.prototype = prototypeObject;
+                var prototypeObject = $subclass.linker[linkedName] = new surrogateConstructor();
+                prototypeObject.constructor = constructor;
+
+                constructor.prototype = prototypeObject;
+            }
+
+            $cleanPrototype(derivedConstructor);
+
+            //Copy members if indicted
+            if (inheritMembers && isInstance && derivedConstructor.$inheritsMembers === true) for (var p in constructor) {                
+                //derivedConstructor.prototype.p = constructor.prototype.p; //Copy above
+                if (!p === 'prototype') derivedConstructor[p] = constructor[p]; //Copy local                
+            }
 
             //Store __TypeName if this is not a instance because Class stored the __TypeName for Classes
             if (!isInstance) Object.defineProperty(derivedConstructor, '__TypeName', {
                 get: function () { return linkedName; }
             });
+
             return derivedConstructor;
         }
 
         //Memory for the pseudo type system
         $subclass.linker = {};
 
-        Export($subclass, window, 'subclass');
+        Export($subclass, window, 'Subclass');
 
         addSafeScope(Class, 3, $subclass);
 
+        /*<ltIE9>*/
         if (typeof window.addEventListener === 'undefined') {
-            /*<ltIE9>*/
             if (window.attachEvent && !window.addEventListener) {
                 var unloadEvent = function () {
                     window.detachEvent('onunload', unloadEvent);
@@ -493,7 +530,7 @@
         function Class(base) {
             Object.defineProperty(this, '__TypeName', { value: base.__TypeName }); // Ensure the __TypeName is present
             Object.defineProperty(this, 'base', { value: base }); // Ensure the base keyword works in the scope
-            $subclass(this, base); // $subclass all classes
+            $subclass(this, base, $isNewObject(this)); // $subclass all classes
 
             //Function to return the TypeName member
             //this.GetTypeName = function () { return this.__TypeName; }
@@ -502,7 +539,7 @@
 
             CLRObject.apply(this);
 
-            return base.$abstract ? base.apply(this) : $subclass(this, base); // Return the base constructor
+            return base.$abstract && typeof (base = base.apply(this)) !== 'undefined' ? base : $subclass(this, base); // Return the base constructor
         }
         Class.toString = function () { return /*'[object */'Class'/*]'*/; };
         Class.cast = Function.prototype.cast;
@@ -629,6 +666,220 @@
                 return actual.call();
             }
         }
+
+        //Reflection
+        var Reflection = this.Reflection = (function () { return Reflection; });
+        Reflection.prototype = Reflection;
+        Reflection.constructor = Reflection;
+        Reflection.toString = function () { return 'Reflection'; }
+        Reflection.$abstract = true;
+
+        //Lex the given function to get C# style attributes
+        function Lex(func) {
+            if (!func) return undefined;
+            var symbols = func.toString(),
+            start, end;
+            start = symbols.indexOf('function');
+            if (start !== 0 && start !== 1) return undefined;
+            start = symbols.indexOf('(', start);
+            end = symbols.indexOf(')', start);
+            var args = [];
+            (symbols.substr(start + 1, end - start - 1).split(',').forEach(function (argument) { args.push(argument); }));
+            return args;
+        };
+
+        function ParameterInfo(/*func*/) {
+
+            // ===============  Private Attributes  =================================================
+            var attributes,
+            defaultValue,
+            isIn, isLcid, isOptional, isOut, isRetval,
+            member, metadataToken,
+            name, parameterType,
+            position, rawDefaultValue;
+
+            // Constructor Logic for a raw string or function
+            if (Is(arguments[0], String) || Is(arguments[0], Function)) {
+                //We are given a single parameter to lex and return a series of ParameterInfo in a List
+                var results = new List(ParameterInfo), //Used to ensure only ParameterInfo[] is returned from this function (encase new ParameterInfo fails)
+                inComment = false, //Used for optional
+                rawType = undefined, //Used for parameterType
+                retVal = false, //Unused as of now
+                lookAhead = Lex(arguments[0]), //Get raw declarations
+                skipUntilIndex = -1,
+                _rawDefaultValue = undefined,
+                _defaultValue = undefined;
+
+
+                //Iterate raw declarations
+                lookAhead.forEach(function (/*String*/raw, /*Number*/index) {
+
+                    //Allow look ahead
+                    if (index < skipUntilIndex) return;
+
+                    //Check for Type name preceeding parameter
+                    for (var t in Types) if (raw === Types[t]) return;
+
+                    //Optional values
+                    if (inComment && raw === '=') {
+                        _defaultValue = new Function('return' + lookAhead[index + 1])();
+                        skipUntilIndex = index + 2;
+                    }
+
+                    //Determine if inside a comment (only /**/ style is supported for function arguments
+                    inComment = raw.indexOf('*') !== -1 && raw.indexOf('//') !== -1;
+
+                    //Determine retVal
+                    retVal = raw.indexOf('ret');
+
+                    //Prepare name
+                    raw = raw.replace('*', '');
+                    raw = raw.replace('//', '');
+
+                    if (retVal !== -1) {//Default value if ret is preset?
+                        skipUntilIndex = index + 2;
+                        _rawDefaultValue = raw.subString(retVal, lookAhead[skipUntilIndex++]);
+                        raw = raw.replace('return', '');
+                        raw = raw.replace('ret', '');
+                        retVal = true;
+                    } else retVal = false;
+
+                    //Determine values based on matches inter alia
+                    if (index < skipUntilIndex) results.Add(new ParameterInfo({
+                        position: index,
+                        name: raw,
+                        parameterType: '', //ToDo with match
+                        optional: inComment,
+                        isReturn: retVal,
+                        rawDefaultValue: _rawDefaultValue
+                    }));
+                });
+
+                return results.array;
+
+            } else if (Is(arguments[0], Object)) {  // Constructor logic for Object parameters
+                attributes = arguments[0].attributes || new List(/*Attribute*/);
+                name = arguments[0].name;
+                position = arguments[0].position;
+                defaultValue = arguments[0].defaultValue;
+
+                member = arguments[0].member;
+                metadataToken = arguments[0].metadataToken;
+                parameterType = arguments[0].parameterType;
+                position = arguments[0].position;
+                rawDefaultValue = arguments[0].rawDefaultValue;
+
+                isIn = arguments[0].isIn;
+                isLcid = arguments[0].isLcid;
+                isOptional = arguments[0].isOptional;
+                isLcid = arguments[0].isLcid;
+                isOut = arguments[0].isOut;
+                isRetval = arguments[0].isRetval;
+            } else {    // Constructor logic for arguments style            
+                //ToDo
+            }
+
+            // ===============  Public Properties  =================================================
+
+            /*
+            It seems I could make Properties auto-implement by overriding call to check the caller to be an instance of class. 
+            If it is then return Object.defineProperty(arguments);
+            It would look like this:
+            */
+            // /* readonly Attribute[] Attributes = */ (function(ParameterInfo.prototype, 'Attributes', {
+            //     get: function () { return attributes; }
+            // }){}();
+
+            //Gets the attributes for this parameter.
+            Object.defineProperty(this, 'Attributes', {
+                get: function () { return attributes; }
+            });
+
+            //Gets a value indicating the default value if the parameter has a default value.
+            Object.defineProperty(this, 'DefaultValue', {
+                get: function () { }
+            });
+
+            //Gets a value indicating whether this is an input parameter.
+            Object.defineProperty(this, 'IsIn', {
+                get: function () { }
+            });
+
+            //Gets a value indicating whether this parameter is a locale identifier (lcid).
+            Object.defineProperty(this, 'IsLcid', {
+                get: function () { }
+            });
+
+            //Gets a value indicating whether this is optional
+            Object.defineProperty(this, 'IsOptional', {
+                get: function () { }
+            });
+
+            //Gets a value indicating whether this is an output parameter.
+            Object.defineProperty(this, 'IsOut', {
+                get: function () { }
+            });
+
+            //Gets a value indicating whether this is a Retval parameter
+            Object.defineProperty(this, 'IsRetval', {
+                get: function () { }
+            });
+
+            //Gets a value indicating the member in which the parameter is implemented.
+            Object.defineProperty(this, 'Member', {
+                get: function () { }
+            });
+
+            //Gets a value that identifies this parameter in metadata.
+            Object.defineProperty(this, 'MemberdataToken', {
+                get: function () { }
+            });
+
+            //Gets the name of the parameter.
+            Object.defineProperty(this, 'Name', {
+                get: function () { return name; }
+            });
+
+            //Gets the Type of this parameter.
+            Object.defineProperty(this, 'ParameterType', {
+                get: function () { return parameterType; }
+            });
+
+            //Gets the zero-based position of the parameter in the formal parameter list.
+            Object.defineProperty(this, 'Position', {
+                get: function () { }
+            });
+
+            //Gets a value indicating the default value if the parameter has a default value.
+            Object.defineProperty(this, 'RawDefaultValue', {
+                get: function () { }
+            });
+
+            this.toString = function () { return name || position + '_' + parameterType; }
+
+            this.valueOf = function () { return defaultValue; }
+
+        }
+
+        ParameterInfo.toString = function () { return /*'[object Class */'ParameterInfo'/*]'*/; }
+
+        //Possibly should utilize RegEx...
+        //Possibly should find hidden arguments
+        //Possibly should only find/retrieve arguments of certain type
+        //Possibly should find type of returned arguments
+        //Possibly should contain ParameterInfo for returned arguments
+        Reflection.getArguments = function (func) { return new ParameterInfo(func); }
+
+        Export(Reflection, window, 'Reflection');
+
+        //Function.prototype.getArguments = function () { return Reflection.getArguments(this); }
+
+        //Function.prototype.getExpectedReturnType = function () { /*ToDo*/ }
+
+        Object.seal(Reflection);
+
+        Object.freeze(Reflection);
+
 
     })();
 

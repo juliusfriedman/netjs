@@ -1,30 +1,4 @@
-﻿/*******************************************************************************************
-Title:  Javascript Generic List Implementation
-Description:  An implementation of a Generic List with LINQ support (based off .NET).
-Author:  Julius Friedman / Shawn Lawsure
-Usage Example:
-
-function Car(make, model)
-{
-this.make = make;
-this.model = model;
-}
-
-var myList = new List();
-myList.Add(new Car("Honda", "Civic"));
-myList.Add(new Car("Nissan", "Sentra"));
-myList.Add(new Car("Honda", "Cr-V"));
-myList.Add(new Car("Honda", "Cr-V"));
-
-//Where all of the following are equivalent
-var selList = myList.Where("make == 'Honda'").OrderByDescending("model").Distinct();
-var anotherList = myList.Where(function(){ this.make == 'Honda'}).OrderByDescending("model").Distinct();
-var yetAnotherList = myList.Where(function(c){ c.make == 'Honda'}).OrderByDescending("model").Distinct();
-var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("model").Distinct();
-         
-*********************************************************************************************/
-
-/*namespace GenericList*/(function () {
+﻿/*namespace Anonymous*/(function () {
 
     // ===============  LINQ Utilities (Private)  =================================================
 
@@ -556,7 +530,8 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
         }
 
         //Cleanup instance prototype
-        for (var p in this) if (!this.hasOwnProperty(p)) delete this.p;
+        //for (var p in this) if (!this.hasOwnProperty(p)) delete this.p;
+        CleanPrototype(this);
 
         //Add event for destructor in executed closure
         window.addEventListener('unload', function () { $List$Dispose(key, true); });
@@ -641,48 +616,48 @@ var finalList = myList.Where(function(){ make == 'Honda'}).OrderByDescending("mo
 
     List.toString = function () { return /*'[object Class */'List'/*]'*/; };
 
-    // Method: indexOf
-    // Description: adds logic to retrieve the index of an element from an array if present, otherwise -1
-    if (!Array.prototype.indexOf) {
-        Array.prototype.indexOf = function (elt /*, from*/) {
-            var len = this.length,
-            from = Number(arguments[1]) || 0;
-            from = (from < 0) ? Math.ceil(from) : Math.floor(from);
-            if (from < 0) from += len;
-            for (; from < len; from++)
-                if (from in this && this[from] === elt)
-                    return from;
-            return -1;
-        };
-    }
+//    // Method: indexOf
+//    // Description: adds logic to retrieve the index of an element from an array if present, otherwise -1
+//    if (!Array.prototype.indexOf) {
+//        Array.prototype.indexOf = function (elt /*, from*/) {
+//            var len = this.length,
+//            from = Number(arguments[1]) || 0;
+//            from = (from < 0) ? Math.ceil(from) : Math.floor(from);
+//            if (from < 0) from += len;
+//            for (; from < len; from++)
+//                if (from in this && this[from] === elt)
+//                    return from;
+//            return -1;
+//        };
+//    }
 
-    // Method: forEach
-    // Description: Allows you to provide a function and optional binding to invoke on each member of the array
-    // -- Borrowed from MooTools --
-    if (!Array.prototype.forEach) {
-        Array.prototype.forEach = function (fn, bind) {
-            for (var i = 0, l = this.length; i < l; ++i)
-                if (i in this) fn.call(bind, this[i], i, this);
-        }
-    }
+//    // Method: forEach
+//    // Description: Allows you to provide a function and optional binding to invoke on each member of the array
+//    // -- Borrowed from MooTools --
+//    if (!Array.prototype.forEach) {
+//        Array.prototype.forEach = function (fn, bind) {
+//            for (var i = 0, l = this.length; i < l; ++i)
+//                if (i in this) fn.call(bind, this[i], i, this);
+//        }
+//    }
 
-    // Method: forEach
-    // Description: Allows you to provide a function and optional binding to invoke on each member of the array
-    if (!Object.keys) {
-        Object.keys = function (that) {
-            var results = [];
-            for (var p in that)
-                if (that.hasOwnProperty(p))
-                    results.push(that.p);
-            return results;
-        };
-    }
+//    // Method: forEach
+//    // Description: Allows you to provide a function and optional binding to invoke on each member of the array
+//    if (!Object.keys) {
+//        Object.keys = function (that) {
+//            var results = [];
+//            for (var p in that)
+//                if (that.hasOwnProperty(p))
+//                    results.push(that.p);
+//            return results;
+//        };
+//    }
 
-    // Method: freeze
-    // Description: Does nothing since it requires runtime support or modification of apply which can hinder legacy code
-    if (!Object.freeze) {
-        Object.freeze = function (object) { };
-    }
+//    // Method: freeze
+//    // Description: Does nothing since it requires runtime support or modification of apply which can hinder legacy code
+//    if (!Object.freeze) {
+//        Object.freeze = function (object) { };
+//    }
 
     //var Interface; var $interface;
 
