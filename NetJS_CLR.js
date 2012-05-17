@@ -4,62 +4,18 @@
 
         //.Net JavaScript (this should be a new scope)
         var newScope = this,
+        CLRItself = {
+            version: {
+                major: 0.1,
+                minor: 0.0001
+            },
+            valueOf: function () { return newScope; },
+            toString: function () { return 'CLR ' + [CLRItself.version.major, CLRItself.version.minor].join('.'); }
+        };
 
-        //Security
-        addSafeScope = function (argumentz, expectedCallerDepth, expectedCaller/*,Boolean noVerify = false*/) {
-            var noVerify = arguments[3] || false;
-            if (noVerify === false) expectedCallerDepth += 2; //Protect against CLR Checks unless noVerify is given
-            try { if (noVerify !== false) checkScope(); }
-            catch (_) { throw _; }
-            if (typeof addSafeScope.registered[expectedCaller] === 'undefined') addSafeScope.registered[expectedCaller] = expectedCallerDepth //This allow patch in and multiple callers
-            else addSafeScope.registered[expectedCaller] += expectedCallerDepth;
-        }
-
-        addSafeScope.registered = {};
-
-        var checkScope = function () {
-            try {
-                var stackPointer = undefined,
-                cycle = -1;
-                //Iterate all registered
-                for (var r in addSafeScope.registered) {
-                    //If there is a registered caller and it is equal to the expectedCaller then ensure the cyclic depth is also correct
-                    if (addSafeScope.registered.hasOwnProperty(r)) {
-                        cycle = addSafeScope.registered[r];
-                        stackPointer = arguments.callee;
-                        while (cycle >= 0) {
-                            stackPointer = stackPointer.caller;
-                            cycle--;
-                            if (stackPointer == r) return;
-                        }
-
-                    }
-                }
-
-                //Throw
-                throw new Error('Invalid expectedCaller at expectedCallerDepth');
-            }
-            catch (_) { throw _; }
-        }
-
-        //Cleanup prototype
-        function $cleanPrototype(object) { for (var p in object) if (!object.hasOwnProperty(p)) delete object.p; }
-
-        function $convertLegacyArguments(argumentz) {
-            if (!argumentz || argumentz.length && argumentz[0] instanceof ParameterInfo) return argumentz;
-            for (var i = 0, e = argumentz.length; i < e; ++i) {
-                argumentz[i] = new ParameterInfo({
-                    position: i,
-                    value: argumentz[i],
-                    defaultValue: argumentz[i],
-                    rawDefaultValue: argumentz[i],
-                    parameterType: $getTypeName(argumentz[i]) || typeof argumentz[i],
-                    optional: false,
-                    name: argumentz[i].toString()
-                });
-            }
-            return argumentz;
-        }
+        newScope.valueOf = CLRItself.valueOf;
+        newScope.toString = CLRItself.toString;
+        newScope.version = CLRItself.version;
 
         // Method: Export 
         // Description: The Export function takes the given what and puts it where (optionally as 'as')
@@ -88,11 +44,79 @@
                 }
         }
 
+
+
+        //Security
+        var Security = {
+            valueOf: function () { return this; },
+            toString: function () { return 'Security'; }
+        };
+
+        //Adds an allowed scope with expected depth
+        Security.addSafeScope = function(argumentz, expectedCallerDepth, expectedCaller/*,Boolean noVerify = false*/) {
+            var noVerify = arguments[3] || false;
+            if (noVerify === false) expectedCallerDepth += 2; //Protect against CLR Checks unless noVerify is given
+            try { if (noVerify !== false) Security.checkScope(); }
+            catch (_) { throw _; }
+            if (typeof Security.addSafeScope.registered[expectedCaller] === 'undefined') Security.addSafeScope.registered[expectedCaller] = expectedCallerDepth //This allow patch in and multiple callers
+            else Security.addSafeScope.registered[expectedCaller] += expectedCallerDepth;
+        }
+
+        Security.addSafeScope.registered = {};
+
+        //Checks a scope
+        Security.checkScope = function() {
+            if (this.toString() === CLRItself.toString()) return true; //Not very secure :P
+            try {
+                var stackPointer = undefined,
+                cycle = -1;
+                //Iterate all registered
+                for (var r in Security.addSafeScope.registered) {
+                    //If there is a registered caller and it is equal to the expectedCaller then ensure the cyclic depth is also correct
+                    if (Security.addSafeScope.registered.hasOwnProperty(r)) {
+                        cycle = Security.addSafeScope.registered[r];
+                        stackPointer = arguments.callee;
+                        while (cycle >= 0) {
+                            stackPointer = stackPointer.caller;
+                            cycle--;
+                            if (stackPointer == r) return;
+                        }
+
+                    }
+                }
+
+                //Throw
+                throw new Error('Invalid expectedCaller at expectedCallerDepth');
+            }
+            catch (_) { throw _; }
+        }
+        $Export(Security, window);
+
+        //Cleanup prototype
+        function $cleanPrototype(object) { for (var p in object) if (!object.hasOwnProperty(p)) delete object.p; }
         $Export($cleanPrototype, window, 'CleanPrototype');
+
+        //Converts arguments into ParameterInfo's
+        function $convertLegacyArguments(argumentz) {
+            if (!argumentz || argumentz.length && argumentz[0] instanceof ParameterInfo) return argumentz;
+            for (var i = 0, e = argumentz.length; i < e; ++i) {
+                argumentz[i] = new ParameterInfo({
+                    position: i,
+                    value: argumentz[i],
+                    defaultValue: argumentz[i],
+                    rawDefaultValue: argumentz[i],
+                    parameterType: $getTypeName(argumentz[i]) || typeof argumentz[i],
+                    optional: false,
+                    name: argumentz[i].toString()
+                });
+            }
+            return argumentz;
+        }
+        $Export($convertLegacyArguments, window, 'ConvertArguments');
 
         //This verification is ugly... the proper way to do this is to have a list of allowed entry points and do a compare on the caller chain to all of the qualified safe entry points
         function $isCLR() {
-            try { checkScope(); return true; }
+            try { Security.checkScope(); return true; }
             catch (_) { return false; }
             return this === newScope; //Should never happen unless ...
         }
@@ -141,8 +165,8 @@
                     };
                 }
             }
-            addSafeScope(Function.prototype.call, 2, Function.prototype.bind);
-            addSafeScope(Function.prototype.bind, 2, Function.prototype.apply);
+            Security.addSafeScope(Function.prototype.call, 2, Function.prototype.bind);
+            Security.addSafeScope(Function.prototype.bind, 2, Function.prototype.apply);
         }
 
         if (!Array.prototype.indexOf) {
@@ -432,7 +456,7 @@
 
         Export($subclass, window, 'Subclass');
 
-        addSafeScope(Class, 3, $subclass);
+        Security.addSafeScope(Class, 3, $subclass);
 
         /*<ltIE9>*/
         if (typeof window.addEventListener === 'undefined') {
@@ -545,8 +569,8 @@
         //Export Class keyword to the window
         Export(Class, window);
 
-        addSafeScope(Class, 1, Function.prototype.apply);
-        addSafeScope(Class, 4, $cast);
+        Security.addSafeScope(Class, 1, Function.prototype.apply);
+        Security.addSafeScope(Class, 4, $cast);
 
         //Method: using
         //Description: Allows using of disposable objects
@@ -878,6 +902,7 @@
 
         Object.freeze(Reflection);
 
+        return CLRItself;
 
     })();
 
