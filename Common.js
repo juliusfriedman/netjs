@@ -8,7 +8,6 @@ Created: 02/18/2011
 Authors:
 ASTI Transportation :
 Julius R. Friedman[juliusfriedman@gmail.com, jfriedman@asti-trans.com] - Senior Software Engineer 
-Andrew Larkin[andrew@alarkindesign.com, andrew@asti-trans.com] - Web Developer
 globals: win = window, doc = document, undef = undefined, m = MooTools
 */
 ~function (win, doc, undef, m) {

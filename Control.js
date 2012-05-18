@@ -911,7 +911,7 @@ globals: win = window, screen = window.screen, doc = document, body = document.b
         get: function (property) {
             property = property.camelCase();
             return this[property] || $(this).getStyle(property) || null;
-        } .overloadGetter(),
+        } .(),
         //This should be the only place a toElement is called, if force is specified we need to update the element using the properties
         toElement: function (force) {
             //If there is no element but we specify a baseElement create it

@@ -8,7 +8,7 @@ Created: 02/18/2011
 Authors:
 ASTI Transportation :
 Julius R. Friedman[juliusfriedman@gmail.com, jfriedman@asti-trans.com] - Senior Software Engineer 
-Andrew Larkin[ , ] - Web Developer
+
 --// For discussion and comments, see: MooTools Forge
 globals: win = window, doc = document, undef = undefined, brow = MooTools.Browser
 */
