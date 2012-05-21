@@ -274,7 +274,7 @@ Load dependancies for the application, including stylesheets
             Exceptions: [],
             Console: {
                 log: function (value) {
-                    //
+                    if (window.console) window.console.log(value);
                 }
             },
             Resources: [],
@@ -345,6 +345,10 @@ Load dependancies for the application, including stylesheets
                 if (!window.location.toString().match('DevelopmentTesting')) {
                     if (!window.location.toString().toLowerCase().match('login')) w.addEvent('unload', this.dispose.bind(this));
                 }
+
+                //Ensure a console is present
+                if (typeof window.console === undefined) window.console = Application.Console;
+
             },
             //Destructor
             dispose: function () {
@@ -419,24 +423,20 @@ Load dependancies for the application, including stylesheets
                 srcArray = Array.from(srcArray);
                 dependsArray = Array.from(dependsArray);
                 dependsArray = Array.filter(dependsArray, function (dependScript) {
-                    return !this.LoadedResources.contains(dependScript);
-                }, this);
+                    return !Application.LoadedResources.contains(dependScript);
+                });
                 if (dependsArray.length) return this.loadScripts.delay(0, this, [srcArray, dependsArray, noCache]);
-                //---
-                //                for (var i = 0, e = dependsArray.length; i < e; ++i) {
-                //                    if (!this.LoadedResources.contains(dependsArray[i])) return this.loadScripts.delay(1000, this, [srcArray, dependsArray, noCache]);
-                //                };
                 Array.each(srcArray, function (src) {
-                    if (this.Resources.contains(src)) return;
-                    this.Resources.include(src);
+                    if (Application.Resources.contains(src)) return;
+                    Application.Resources.include(src); //Include the unversioned name
                     if (noCache) src += '?' + Date.now();
                     Asset.javascript(src, {
                         onLoad: function () {
-                            this.LoadedResources.include(src.split('?')[0]);
-                            this.fireEvent('resourceLoaded');
-                        } .bind(this)
+                            Application.LoadedResources.include(src); //Include the versioned name
+                            Application.fireEvent('resourceLoaded'); //Fire the event indicating the resource was loded.
+                        }
                     });
-                }, this);
+                });
             },
             loadStylesheet: function (path, noCache) {
                 if (!path) return;
@@ -445,15 +445,14 @@ Load dependancies for the application, including stylesheets
             },
             loadStylesheets: function (pathArry, noCache) {
                 pathArry = Array.from(pathArry);
-                var self = this;
                 Array.each(pathArry, function (path) {
-                    if (self.Resources.contains(path)) return;
-                    self.Resources.include(path);
+                    if (Application.Resources.contains(path)) return;
+                    Application.Resources.include(path); //Include the unversioned id
                     if (noCache) path += postpend;
                     Asset.css(path, {
                         onLoad: function () {
-                            self.LoadedResources.include(path.split('?')[0]);
-                            self.fireEvent('resourceLoaded');
+                            Application.LoadedResources.include(path); //Include the versioned id
+                            Application.fireEvent('resourceLoaded');
                         }
                     });
                 });
@@ -475,9 +474,7 @@ Load dependancies for the application, including stylesheets
                 if (!ns) return null;
                 var base = w;
                 ns = ns.split('.');
-                ns.each(function (nspart) {
-                    base = base[nspart] = base[nspart] || {};
-                });
+                ns.each(function (nspart) { base = base[nspart] = base[nspart] || {}; });
                 return base;
             },
             getSettings: function () {
@@ -547,6 +544,8 @@ Load dependancies for the application, including stylesheets
                 $App$Settings.paths.resources + 'javascript/Classes/datepicker/datepicker.css'],
                 true);
         });
+
+        //Should be moved to Default.js
 
         /* *******************************
         * Application Loading Methods

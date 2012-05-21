@@ -53,7 +53,7 @@
         };
 
         //Adds an allowed scope with expected depth
-        Security.addSafeScope = function(argumentz, expectedCallerDepth, expectedCaller/*,Boolean noVerify = false*/) {
+        Security.addSafeScope = function (argumentz, expectedCallerDepth, expectedCaller/*,Boolean noVerify = false*/) {
             var noVerify = arguments[3] || false;
             if (noVerify === false) expectedCallerDepth += 2; //Protect against CLR Checks unless noVerify is given
             try { if (noVerify !== false) Security.checkScope(); }
@@ -65,7 +65,7 @@
         Security.addSafeScope.registered = {};
 
         //Checks a scope
-        Security.checkScope = function() {
+        Security.checkScope = function () {
             if (this.toString() === CLRItself.toString()) return true; //Not very secure :P
             try {
                 var stackPointer = undefined,
@@ -235,7 +235,7 @@
                 }
                 throw new Error();
             }
-            catch (_) { return type; }
+            catch (_) { return type === null ? null : type === undefined ? undefined : type; }
         }; //0 = function, 1 = name and  so on => {, [native code], }
 
         //Allows a constructor to determine if new was called
@@ -247,11 +247,19 @@
         //Is function
         function $Is(what, type) {
             try {
-                if (typeof what === $getTypeName(type).toLowerCase()) return true;
+                if (!type) return $getTypeName(what) === $getTypeName(type);
+                else if (typeof what === $getTypeName(type).toLowerCase()) return true;
+                else if (($getTypeName(what) + '') === ($getTypeName(type) + '')) return true;
                 else return what instanceof type;
             }
             catch (_) { return false; }
         }
+
+        function $IsNull(what) { return $Is(what, null); };
+        Export($IsNull, window, 'IsNull');
+
+        function $IsUndefined(what) { return $Is(what, undefined); };
+        Export($IsUndefined, window, 'IsUndefined');
 
         //Export $Is to the window as Is
         Export($Is, window, 'Is');
@@ -576,16 +584,16 @@
         //Description: Allows using of disposable objects
         function $using(disposable) {
             //If there is no disposable return
-            if (!disposable) return;
+            if (!disposable || typeof disposable.Dispose === 'undefined') return;
             //Scope the finalizer
             var finalizer = disposable.Dispose,
-                token = new Date().getMilliseconds(),
-                earlyCalls = [];
+                token = new Date().getTime(), //The token which will invoke the real finalizer
+                earlyCalls = []; //The references to who called before
 
             //Override the Dispose method incase the user calls dispose inside on accident
             disposable.Dispose = function (when) {
-                if (when === token) finalizer(true);
-                else earlyCalls.push(new Date().getMilliseconds());
+                if (when && when === token) finalizer(true);
+                else earlyCalls.push(arguments.callee);
             }
 
             $CollectGarbadge.timeOuts[disposable] = $CollectGarbadge.timeOuts[disposable] || [];
@@ -601,13 +609,16 @@
 
         Export($using, window, 'using');
 
-        //The CLRObject which will be the base class of all classes going forward
+        //The CLRObject which will be the base class of all classes going forward... It will be exported under System.Object
         function CLRObject() {
             Class.apply(arguments, this);
             this.toString = function () { return this.__TypeName; }
         }
 
-        CLRObject.prototype.toString = function () { return 'CLRObject'; }
+        CLRObject.toString = function () { return /*'[object Class */'CLRObject'/*]'*/; }
+
+        //The System Object
+        var System = {};
 
         //Classes for testing
 

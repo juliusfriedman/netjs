@@ -6,9 +6,9 @@ Requires: MooTools 1.3, MooToolsMore 1.3, MooToolsASTI.js, DynamicCSS.js
 Provides: ControlStyles, ControlFlags, ControlManger, WindowManager, Control, Panel, Button, Window, WindowFrame
 Created: 03/38/2011
 Authors:
-    ASTI Transportation :
-    Origional Author: Julius R. Friedman[juliusfriedman@gmail.com, jfriedman@asti-trans.com] - Senior Software Engineer 
-    Modified for Asthetics by Andrew Larkin[andrew@alarkindesign.com , andrew@asti-trans.com] - Web Developer
+ASTI Transportation :
+Origional Author: Julius R. Friedman[juliusfriedman@gmail.com, jfriedman@asti-trans.com] - Senior Software Engineer 
+Modified for Asthetics by Andrew Larkin[andrew@alarkindesign.com , andrew@asti-trans.com] - Web Developer
 globals: win = window, screen = window.screen, doc = document, body = document.body, moo = MooTools, $ = document.id, nil = null, undef = undefines
 */
 (function (win, screen, doc, body, moo, $, nil, undef) {
@@ -539,7 +539,7 @@ globals: win = window, screen = window.screen, doc = document, body = document.b
             return parentControl.filter(function (control) {
                 return ControlFlags.hasFlag(control.options.ControlFlags, controlFlag);
             });
-        }      
+        }
     });
 
     //Instantiate the ControlManager
@@ -656,7 +656,7 @@ globals: win = window, screen = window.screen, doc = document, body = document.b
     //A few things of note here: First off, notice we are synchronizing the style property with the control class itself.
     //The idea is to have the control be a true facade for the Element class, so rather than referencing Control.element.style.height,
     //we are referencing Control.height (or
-    var $Control$Set$Style = function (property, value) {
+    var $Control$Set$Style = function (bind, property, value) {
         if (!this.element) return;
         Element.setStyle(this.element, property, value);
         if (!this.saveState) this[property] = this.element.getStyle(property);
@@ -911,7 +911,7 @@ globals: win = window, screen = window.screen, doc = document, body = document.b
         get: function (property) {
             property = property.camelCase();
             return this[property] || $(this).getStyle(property) || null;
-        } .(),
+        } .overloadGetter(),
         //This should be the only place a toElement is called, if force is specified we need to update the element using the properties
         toElement: function (force) {
             //If there is no element but we specify a baseElement create it
@@ -967,9 +967,8 @@ globals: win = window, screen = window.screen, doc = document, body = document.b
                     //This parent will then grab the control
                     Array.each(self.children, function (child, index) {
                         //IE 8 Needs this scope to be retained with the try
-                        try {
-                            $(self).grab($(child.render(all)));
-                        } catch (err) { }
+                        try { $(self).grab($(child.render(all))); }
+                        catch (_) { }
                     });
                 }
 
@@ -1137,6 +1136,8 @@ globals: win = window, screen = window.screen, doc = document, body = document.b
         //Fields
         time: nil,
         //Constructor
+        //Should take a Timer as an option and not rely on the Global timer
+        //Sub timers should be fake and only call to the event of the single master timer for performance.
         initialize: function (options) {
             if (!Controls.Timer) throw 'No Timer instance found!';
             this.parent(options);
@@ -1202,6 +1203,7 @@ globals: win = window, screen = window.screen, doc = document, body = document.b
             } else return this.parent(force);
         },
         //Offset the background of the button to accommodate mouseover effects.  This original background is stored.
+        //This should have been an extension method
         offsetBackground: function (x, y) {
             if (!this.rendered) return;
             this.saveState = true;
@@ -1249,7 +1251,7 @@ globals: win = window, screen = window.screen, doc = document, body = document.b
             this.addEvent('disabled_changed', function () {
                 var disabled = this.get('disabled');
                 this.children.each(function (child) {
-                    if (child instanceof Input) {
+                    if (child.get('tag') === 'input' || child instanceof Input) {
                         child.set('disabled', disabled);
                     }
                 });
@@ -1304,7 +1306,7 @@ globals: win = window, screen = window.screen, doc = document, body = document.b
             this.addEvent('disabled_changed', function () {
                 var disabled = this.get('disabled');
                 this.children.each(function (child) {
-                    if (child instanceof Input) {
+                    if (child.get('tag') === 'input' || child instanceof Input) {
                         child.set('disabled', disabled);
                     }
                 });
