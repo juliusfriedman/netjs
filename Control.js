@@ -656,7 +656,7 @@ globals: win = window, screen = window.screen, doc = document, body = document.b
     //A few things of note here: First off, notice we are synchronizing the style property with the control class itself.
     //The idea is to have the control be a true facade for the Element class, so rather than referencing Control.element.style.height,
     //we are referencing Control.height (or
-    var $Control$Set$Style = function (bind, property, value) {
+    var $Control$Set$Style = function (property, value) {
         if (!this.element) return;
         Element.setStyle(this.element, property, value);
         if (!this.saveState) this[property] = this.element.getStyle(property);
