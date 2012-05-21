@@ -512,7 +512,7 @@ Load dependancies for the application, including stylesheets
 
 
         //If there is not already an Application Instance than export our application object
-        if (!w.Application) w.Application = new Application();
+        if (!w.Application) Application = w.Application = new Application();
 
         //Allows a function to authenticate using our model
         if (!Function.Authenticate) Function.implement({
