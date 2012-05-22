@@ -58,7 +58,7 @@
             if (noVerify === false) expectedCallerDepth += 2; //Protect against CLR Checks unless noVerify is given
             try { if (noVerify !== false) Security.checkScope(); }
             catch (_) { throw _; }
-            if (typeof Security.addSafeScope.registered[expectedCaller] === 'undefined') Security.addSafeScope.registered[expectedCaller] = expectedCallerDepth //This allow patch in and multiple callers
+            if (IsNullOrUndefined(Security.addSafeScope.registered[expectedCaller])) Security.addSafeScope.registered[expectedCaller] = expectedCallerDepth //This allow patch in and multiple callers
             else Security.addSafeScope.registered[expectedCaller] += expectedCallerDepth;
         }
 
@@ -114,7 +114,7 @@
         }
         $Export($convertLegacyArguments, window, 'ConvertArguments');
 
-        //This verification is ugly... the proper way to do this is to have a list of allowed entry points and do a compare on the caller chain to all of the qualified safe entry points
+        //Checks for CLR Binding or a safe hook as the context of the caller or associated call chain
         function $isCLR() {
             try { Security.checkScope(); return true; }
             catch (_) { return false; }
@@ -136,13 +136,98 @@
         //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
         Function.prototype.apply = function () {
             $checkCLR();
-            try { return Function$prototype$apply($convertLegacyArguments(arguments), this); }
+            try { return Function$prototype$apply(this, arguments); }
             catch (_) { return Function$prototype$apply; }
         }
 
         //Object.prototype._constructor = Object.prototype.constructor;
 
+        //Replace object constructor
         Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class({}); }
+
+        //Backup GarbadgeCollector
+        var _CollectGarbadge = typeof CollectGarbage === 'undefined' ? undefined : CollectGarbage;
+
+        //Garbadge Collector
+        function $CollectGarbadge() { CollectGarbage(); }
+        $CollectGarbadge.toString = function () { return '$CollectGarbadge' }
+        $CollectGarbadge.$abstract = true;
+
+        //Replace
+        CollectGarbage = $CollectGarbadge;
+
+        //Hash of known Object, Handles with a live timeOut
+        $CollectGarbadge.timeOuts = {};
+
+        //Export $CollectGarbadge
+        $Export($CollectGarbadge, window, 'CollectGarbadge');
+
+        //Gets the Type name from the Constructor given (Native/Declared Types Only)
+        function $getTypeName(type) {
+            try {
+                type = typeof type !== 'undefined' ? type : this.GetTypeName();
+                if (!(typeof type === 'string' || type instanceof String)) {
+                    var result = type.toString().split(' ');
+                    if (result.length === 1) return result[0]; // Qualified Type
+                    else result = result[1];
+                    result = result.toString().substring(0, result.indexOf('(')); //Native
+                    return result;
+                }
+                throw new Error();
+            }
+            catch (_) { return type === null ? null : type === undefined ? undefined : type; }
+        }; //0 = function, 1 = name and  so on => {, [native / code], }
+
+        //Allows a constructor to determine if new was called
+        function $isNewObject(object) { return ((new Object() === object) || (object.toString() === '[object Object]')); }
+
+        //Export $getTypeName to the window as GetTypeName
+        Export($getTypeName, window, 'GetTypeName');
+
+        //Is function
+        function $Is(what, type) {
+            try {
+                if (!type) return $getTypeName(what) === $getTypeName(type);
+                else if (typeof what === $getTypeName(type).toLowerCase()) return true;
+                else if (($getTypeName(what) + '') === ($getTypeName(type) + '')) return true;
+                else return what instanceof type;
+            }
+            catch (_) { return false; }
+        }
+
+        function $IsNull(what) { return typeof what === 'object' && what === null; ; };
+        Export($IsNull, window, 'IsNull');
+
+        function $IsUndefined(what) { return typeof what === 'undefined'; };
+        Export($IsUndefined, window, 'IsUndefined');
+
+        function $IsNullOrUndefined(what) { return $IsNull(what) || $IsUndefined(what); }
+        Export($IsUndefined, window, 'IsNullOrUndefined');
+
+        //Export $Is to the window as Is
+        Export($Is, window, 'Is');
+
+        //As
+        function $As(what, type) { try { return new type(what); } catch (_) { return $cast(what, type); } }
+
+        //Export to static
+        Object.as = $As;
+
+        //Export $As to the window as Is
+        Export($As, window, 'As');
+
+        //Export $Is to the window as Is
+        Export($Is, window, 'Is');
+
+        //Export to static
+        Object.is = $Is;
+
+        Export($Is, window, 'Is');
+
+        //Export to prototype
+        //Object.prototype.is = Object.is;
+
+        //Polyfills
 
         /*<ltIE9>*/
         if ((navigator.appVersion.indexOf('7.') !== -1 || navigator.appVersion.indexOf('8.') !== -1 && navigator.appVersion.indexOf('MSIE') !== -1)) {
@@ -157,7 +242,7 @@
         }
 
         if (!Function.prototype.bind) {
-            if (typeof (Function.prototype.bind) == 'undefined') {
+            if (!Function.prototype.bind) {
                 Function.prototype.bind = function (context) {
                     var oldRef = this;
                     return function () {
@@ -205,85 +290,6 @@
             };
         }
 
-        //Backup GarbadgeCollector
-        var _CollectGarbadge = typeof CollectGarbage === 'undefined' ? undefined : CollectGarbage;
-
-        //Garbadge Collector
-        function $CollectGarbadge() { CollectGarbage(); }
-        $CollectGarbadge.toString = function () { return '$CollectGarbadge' }
-        $CollectGarbadge.$abstract = true;
-
-        //Replace
-        CollectGarbage = $CollectGarbadge;
-
-        //Hash of known Object, Handles with a live timeOut
-        $CollectGarbadge.timeOuts = {};
-
-        //Export $CollectGarbadge
-        $Export($CollectGarbadge, window, 'CollectGarbadge');
-
-        //Gets the Type name from the Constructor given (Native/Declared Types Only)
-        function $getTypeName(type) {
-            try {
-                type = typeof type !== 'undefined' ? type : this.GetTypeName();
-                if (!(typeof type === 'string' || type instanceof String)) {
-                    var result = type.toString().split(' ');
-                    if (result.length === 1) return result; // Qualified Type
-                    else result = result[1];
-                    result = result.toString().substring(0, result.indexOf('(')); return result; //Native
-                    return result;
-                }
-                throw new Error();
-            }
-            catch (_) { return type === null ? null : type === undefined ? undefined : type; }
-        }; //0 = function, 1 = name and  so on => {, [native code], }
-
-        //Allows a constructor to determine if new was called
-        function $isNewObject(object) { return object.toString() === '[object Object]'; }
-
-        //Export $getTypeName to the window as GetTypeName
-        Export($getTypeName, window, 'GetTypeName');
-
-        //Is function
-        function $Is(what, type) {
-            try {
-                if (!type) return $getTypeName(what) === $getTypeName(type);
-                else if (typeof what === $getTypeName(type).toLowerCase()) return true;
-                else if (($getTypeName(what) + '') === ($getTypeName(type) + '')) return true;
-                else return what instanceof type;
-            }
-            catch (_) { return false; }
-        }
-
-        function $IsNull(what) { return $Is(what, null); };
-        Export($IsNull, window, 'IsNull');
-
-        function $IsUndefined(what) { return $Is(what, undefined); };
-        Export($IsUndefined, window, 'IsUndefined');
-
-        //Export $Is to the window as Is
-        Export($Is, window, 'Is');
-
-        //As
-        function $As(what, type) { try { return new type(what); } catch (_) { return $cast(what, type); } }
-
-        //Export to static
-        Object.as = $As;
-
-        //Export $As to the window as Is
-        Export($As, window, 'As');
-
-        //Export $Is to the window as Is
-        Export($Is, window, 'Is');
-
-        //Export to static
-        Object.is = $Is;
-
-        Export($Is, window, 'Is');
-
-        //Export to prototype
-        //Object.prototype.is = Object.is;
-
         //Polyfill for freeze
         if (!Object.freeze) {
 
@@ -325,7 +331,7 @@
         function $checkSealed(constructor, derivedConstructor) { if (Object.isSealed(constructor)) throw derivedConstructor.toString() + 'cannot inherit from sealed class' + constructor.toString() + '.'; };
 
         //Polyfill for defineProperty
-        if (typeof Object.defineProperty === 'undefined') {
+        if (IsNullOrUndefined(Object.defineProperty)) {
             var descriptorHash = {};
 
             function legacyGet(object, property, descriptor) {
@@ -372,7 +378,7 @@
             //Adds a property to an object with getter, setter and descriptor support
             function defineProperty(object, name, descriptor) {
                 if (!object || !name) return;
-                if (typeof descriptor.value !== 'undefined' && typeof descriptor.get !== 'undefined') throw 'Descriptor cannot contain a value and a getter';
+                if (!IsNullOrUndefined(descriptor.value) && !IsNullOrUndefined(descriptor.get)) throw 'Descriptor cannot contain a value and a getter';
                 descriptor = {
                     enumerable: descriptor.enumerable || false,
                     writeable: descriptor.writeable || false,
@@ -384,7 +390,7 @@
                 };
 
                 //Create getter / setter - might need to do a call scan to determine if this is an assignment
-                var getterSetter = function (value) { return (typeof value === 'undefined' || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
+                var getterSetter = function (value) { return (IsNullOrUndefined(value) || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
 
                 //Create value proxy object
                 var valueProxy = {
@@ -416,11 +422,14 @@
         //http://www.golimojo.com/etc/js-subclass.html
         //Modified for netjs by Julius Friedman
         //Description: Helps interpreterd code to function correctly after compile with respect to instanceof
-        function $subclass(constructor, derivedConstructor/*,Boolean inheritMembers = false*/) {
+        function $subclass(constructor, derivedConstructor/*,Boolean inheritMembers = false, Boolean inheritPrototype = false*/) {
 
+            //Ensure constructor is not sealed
             $checkSealed(constructor, derivedConstructor);
 
-            var inheritMembers = arguments[2] || false, linkedName = '_type_' + derivedConstructor.toString() + '_^_' + constructor.toString(),
+            var inheritMembers = arguments[2] || false,
+                inheritPrototype = arguments[3] || false,
+                linkedName = '_type_' + derivedConstructor.toString() + '_^_' + constructor.toString(),
                 isInstance = $isNewObject(constructor);
 
             if (!($subclass.linker[linkedName] && $subclass.linker[linkedName].constructor === constructor)) {
@@ -445,17 +454,18 @@
 
             $cleanPrototype(derivedConstructor);
 
-            //Copy members if indicted
-            if (inheritMembers && isInstance && derivedConstructor.$inheritsMembers === true) for (var p in constructor) {
-                //derivedConstructor.prototype.p = constructor.prototype.p; //Copy above
-                if (!p === 'prototype') derivedConstructor[p] = constructor[p]; //Copy local                
-            }
+            //Copy prototype if indicted
+            if (inheritPrototype && isInstance && derivedConstructor.$inheritsMembers === true) for (var i in constructor.prototype) if (!(i === 'constructor')) derivedConstructor.prototype[i] = constructor.prototype[i];
 
-            //Store __TypeName
-            if (typeof derivedConstructor.__TypeName === 'undefined') Object.defineProperty(derivedConstructor, '__TypeName', {
+            //Copy members if indicted
+            if (inheritMembers && isInstance && derivedConstructor.$inheritsMembers === true) for (var j in constructor) if (!(j === 'prototype')) derivedConstructor[j] = constructor[j];
+
+            //Store __TypeName only if previously undefined
+            if (IsNullOrUndefined(derivedConstructor.__TypeName)) Object.defineProperty(derivedConstructor, '__TypeName', {
                 get: function () { return linkedName; }
             });
 
+            //Return the new constructor
             return derivedConstructor;
         }
 
@@ -467,7 +477,7 @@
         Security.addSafeScope(Class, 3, $subclass);
 
         /*<ltIE9>*/
-        if (typeof window.addEventListener === 'undefined') {
+        if (IsNullOrUndefined(window.addEventListener)) {
             if (window.attachEvent && !window.addEventListener) {
                 var unloadEvent = function () {
                     window.detachEvent('onunload', unloadEvent);
@@ -548,27 +558,12 @@
         Export(baseClass, window, '$abstract');
         Export(baseClass, window);
 
-        //The Class which represents classes
-        //The Mother of All Mother Functions
-        //The Constructor of No Contructor
-        //All in one line
-        //Featuring more comments than code
-        //And none of them are even relevant...
-        //NOW I JUST HAVE TO FIGURE OUT HOW TO GET CONSTRUCTOR CHAINING TO WORK!!!! UGH!
 
         //If the base class is abstract return the reference to it otherwise return the reference to the result of $subclass given this instance and the baseClass
         function Class(base) {
             Object.defineProperty(this, '__TypeName', { value: base.__TypeName }); // Ensure the __TypeName is present
             Object.defineProperty(this, 'base', { value: base }); // Ensure the base keyword works in the scope
-            $subclass(this, base, $isNewObject(this)); // $subclass all classes
-
-            //Function to return the TypeName member
-            //this.GetTypeName = function () { return this.__TypeName; }
-
-            //this.toString = this.GetTypeName;
-
-            CLRObject.apply(this);
-
+            $subclass(this, base, $isNewObject(this)); // $subclass all classes            
             return base.$abstract && typeof (base = base.apply(this)) !== 'undefined' ? base : $subclass(this, base); // Return the base constructor
         }
         Class.toString = function () { return /*'[object */'Class'/*]'*/; };
@@ -584,7 +579,7 @@
         //Description: Allows using of disposable objects
         function $using(disposable) {
             //If there is no disposable return
-            if (!disposable || typeof disposable.Dispose === 'undefined') return;
+            if (IsNullOrUndefined(disposable) || IsNullOrUndefined(disposable.Dispose)) return;
             //Scope the finalizer
             var finalizer = disposable.Dispose,
                 token = new Date().getTime(), //The token which will invoke the real finalizer
@@ -603,7 +598,7 @@
                 clearInterval($CollectGarbadge.timeOuts[disposable][handle]);
                 $CollectGarbadge.timeOuts[disposable].splice(handle, 1); //Remove call in object history
                 if ($CollectGarbadge.timeOuts[disposable].length === 0) delete $CollectGarbadge.timeOuts[disposable]; //Remove object from history if there are no more timeouts registered.
-            }, (($CollectGarbadge.timeOuts[disposable].length + 1) * 1000))); //Set the timeout for the length of known timeouts + 1 * 1000 (1 Second for the first, 2 for the next etc)
+            }, (($CollectGarbadge.timeOuts[disposable].length + 1) * 1000))); //Set the interval for the length of known timeouts + 1 * 1000 (1 Second for the first, 2 for the next etc)
 
         }
 
@@ -611,11 +606,15 @@
 
         //The CLRObject which will be the base class of all classes going forward... It will be exported under System.Object
         function CLRObject() {
-            Class.apply(arguments, this);
+            Class.apply(this, arguments);
             this.toString = function () { return this.__TypeName; }
         }
 
         CLRObject.toString = function () { return /*'[object Class */'CLRObject'/*]'*/; }
+
+        CLRObject = Subclass(Class, CLRObject);
+
+        Export(CLRObject, window, 'CLRObject');
 
         //The System Object
         var System = {};
@@ -691,12 +690,10 @@
         //Calls the function with named arguments if given using call intercept
         function callWithArguments(/*bind*/) {
             if (arguments.length) {
-                var args = [];
-                for (var i = 0, e = arguments.length; i < e; ++i)
-                    args.push(arguments[i]);
-                //args.push(bind ? self : self.bind(bind));
-                var actual = new Function(args);
-                return actual.call();
+                var args = [], bind = arguments[0] || this;
+                for (var i = 0, e = arguments.length; i < e; ++i) args.push(arguments[i]);
+                args.push(bind ? bind : bind.bind(bind));
+                return ((new Function(args)).call());
             }
         }
 
