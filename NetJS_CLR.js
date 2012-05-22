@@ -48,7 +48,8 @@
         }
 
         //The void
-        function Void() { javascript: void (arguments); }
+        function Void() { return { toString: function () { return Void.toString(); }, valueOf: function () { javascript: void (arguments); } }; }
+        Void.toString = 'Void';
 
         Export(Void, window, 'Void');
 
@@ -157,7 +158,7 @@
         var _CollectGarbadge = typeof CollectGarbadge === 'undefined' ? new Function('return delete this') : CollectGarbadge;
 
         //Garbadge Collector
-        function $CollectGarbadge() { javascript: with (new Void) (_CollectGarbadge()); }
+        function $CollectGarbadge() { javascript: with (new Void) _CollectGarbadge(); }
         $CollectGarbadge.toString = function () { return '$CollectGarbadge' }
         $CollectGarbadge.$abstract = true;
 
@@ -225,19 +226,19 @@
         //Polyfill for freeze
         if (!Object.freeze) {
 
+            //Memory for frozen objects
+            var $freezer = {}
+
             //Puts the ice on
-            function ice(object) { freeze.freezer[object] = true; }
+            function ice(object) { $freezer[object] = true; }
 
             //Takes the ice off
-            function thaw(object) { delete freeze.freezer[object]; }
+            function thaw(object) { delete $freezer[object]; }
 
             //Freeze the object
             function freeze(object) { return ice(object); }
 
-            function isFrozen(object) { return freeze.freezer[object] === true; }
-
-            //Memory for frozen objects
-            freeze.freezer = {}
+            function isFrozen(object) { return $freezer[object] === true; }
 
             //Export
             Object.freeze = freeze;
@@ -247,12 +248,12 @@
         //Polyfill for seal
         if (!Object.seal) {
 
-            function seal(object) { seal.sealed[object] = true; }
-
-            function isSealed(object) { return seal.sealed[object] ? true : false; }
-
             //Memory for sealed objects
-            seal.sealed = {};
+            var $sealed = {};
+
+            function seal(object) { $sealed[object] = true; }
+
+            function isSealed(object) { return $sealed[object] ? true : false; }
 
             //Export
             Object.seal = seal;
