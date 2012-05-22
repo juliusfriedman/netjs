@@ -53,7 +53,6 @@
 
         Export(Void, window, 'Void');
 
-
         //Security
         var Security = {
             valueOf: function () { return this; },
@@ -146,7 +145,7 @@
         Function.prototype.apply = function () {
             $checkCLR();
             try { return Function$prototype$apply(this, arguments); }
-            catch (_) { return Function$prototype$apply; }
+            catch (_) { return Void; }
         }
 
         //Object.prototype._constructor = Object.prototype.constructor;
@@ -591,6 +590,9 @@
         Security.addSafeScope(Class, 1, Function.prototype.apply);
         Security.addSafeScope(Class, 4, $cast);
 
+        function $default(type) { var result = null; try { result = new type(); } catch (_) { result = arguments[0] || null; } return result ? result.valueOf() : result; }
+        $Export($default, window, 'Default');
+
         //Method: using
         //Description: Allows using of disposable objects
         function $using(disposable) {
@@ -891,7 +893,8 @@
             start = symbols.indexOf('(', start);
             end = symbols.indexOf(')', start);
             var args = [];
-            (symbols.substr(start + 1, end - start - 1).split(',').forEach(function (argument) { args.push(argument); }));
+            symbols.substr(start + 1, end - start - 1).split(',').forEach(function (argument) { args.push(argument); });
+            //(symbols.substr(start + 1, end - start - 1).split(',').forEach(Array.prototype.push.bind(args)));
             return args;
         };
 

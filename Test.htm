@@ -21,15 +21,31 @@
         //Specify default value, could be anything
         Car.$default = new Car();
 
-       //Unit Tests
+        //Unit Tests
+
+        function TestSystem() {
+            var test = new System.String();
+            if (!System.Diagnostics.Assert(test, typeof undefined)) throw('Wrong Return');
+
+            if (!Default(System.String).toString() === typeof undefined) throw ('Wrong Return');
+
+            if (Default(null) === typeof undefined) throw ('Wrong Return');
+
+            if (!Default(Number) === 0) throw ('Wrong Return');
+
+            if (!Default(String) === System.String.Empty.toString()) throw ('Wrong Return');
+
+            if (!Default(Boolean) === false) throw ('Wrong Return');
+
+        }
 
         function TestReflection() {
             var myList = new List(),
                 test = Reflection.getArguments(myList.Add);
-            if (!System.Diagnostics.Assert(test, ['object'])) except('Wrong Return');
+            if (!System.Diagnostics.Assert(test, ['object'])) throw('Wrong Return');
 
             test = Reflection.getArguments(myList.Reverse);
-            if (!System.Diagnostics.Assert(test, ['index', 'count'])) except('Wrong Return');
+            if (!System.Diagnostics.Assert(test, ['index', 'count'])) throw('Wrong Return');
         }
 
         function TestCast() {
@@ -39,8 +55,8 @@
             yaComposed = test.cast(Number, function () {
                 return this + anotherTest
             });
-            if (!System.Diagnostics.Assert(composed, 1)) except('Wrong Return');  //Because both types overload to return numbers which should equal 1 by default 0 + 1 = 1;
-            if(!System.Diagnostics.Assert(yaComposed, 1)) except('Wrong Return'); //Because test Casted as a Number return 0 added to the derived class which overloads + to return a number which is default 1;
+            if (!System.Diagnostics.Assert(composed, 1)) throw('Wrong Return');  //Because both types overload to return numbers which should equal 1 by default 0 + 1 = 1;
+            if (!System.Diagnostics.Assert(yaComposed, 1)) throw ('Wrong Return'); //Because test Casted as a Number return 0 added to the derived class which overloads + to return a number which is default 1;
             
             //Should fail because anotherClass hides the function cast
             try {
@@ -54,7 +70,7 @@
                 return this + anotherTest
             });
 
-            if (!System.Diagnostics.Assert(t, 2)) except('Wrong Return');  //Because test is casted to anotherClass which gives it a default value of 1 and 1 + 1 = 2;
+            if (!System.Diagnostics.Assert(t, 2)) throw ('Wrong Return');  //Because test is casted to anotherClass which gives it a default value of 1 and 1 + 1 = 2;
 
             //Should fail because anotherClass hides the function cast
             try {
@@ -137,6 +153,8 @@
                 TestReflection();
 
                 TestCast();
+                
+                TestSystem();
 
             }).bind(window.CLR)(this);
 
