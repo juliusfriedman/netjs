@@ -624,12 +624,12 @@
             try {
                 Object.defineProperty(clrString, index, {
                     get: function () {
-                        if (index < 0 || index >= base.length) throw "index parameter out of range in String.Get";
-                        return clrString.charAt(index);
+                        if (index < 0 || index >= clrString.Length) throw "index parameter out of range in String.Get";
+                        return clrString.toString().charAt(index);
                     },
                     set: function (value) {
                         if (!value instanceof System.Char) return;
-                        if (index < 0 || index >= base.length) throw "index parameter out of range in String.Set";
+                        if (index < 0 || index >= clrString.Length) throw "index parameter out of range in String.Set";
                         clrString[index] = value;
                     }
                 });
@@ -645,7 +645,7 @@
                 innerNumber = Number(innerChar),
                 innerString = String(c);
 
-            if (/*base.length > 1 ||*/innerChar < 0 || innerChar > 255) throw 'Invalid Value for Char';
+            if (base.length > 1 || innerChar < 0 || innerChar > 255) throw 'Invalid Value for Char';
 
             this.ToString = function () { return new System.String(base); }
 
@@ -654,6 +654,14 @@
             this.ToLowerCase = function () { return base.toLowerCase(); }
 
             this.ToUpperCase = function () { return base.toUpperCase(); }
+
+            this.valueOf = function () {
+                if (this instanceof System.Char) return innerChar;
+                else if (this instanceof System.String) return innerString;
+                else if (this instanceof String) return innerString;
+                else if (this instanceof Number) return innerNumber;
+                else return this;
+            }
 
         }
         System.Char.toString = function () { return 'System.Char'; }
@@ -670,20 +678,24 @@
             this.StartsWith = function (str) {
                 try {
                     str = str + ''; //Guard against null and undefined
-                    return base.substring(0, str.length) === str;
+                    //return base.substring(0, str.length) === str;
+                    return base.indexOf(str) === 0;
                 } catch (_) { return false; }
             }
 
             this.EndsWith = function (str) {
                 try {
                     str = str + ''; //Guard against null and undefined
-                    return base.substring(base.length - str.length) === str;
+                    //return base.substring(base.length - str.length) === str;
+                    return base.indexOf(str) === base.length - str.length
                 } catch (_) { return false; }
             }
 
-            this.SubString = function (start, count) { if (start < 0 || start > length || count > length || count < 0) throw 'Argument start or count is Out Of Range in String.SubString'; return new System.String(base.substring(start, length - start - (count || 0))); }
+            this.Substring = function (start, count) { if (start < 0 || start > length || count > length || count < 0) throw 'Argument start or count is Out Of Range in String.Substring'; return new System.String(base.substr(start, count)); }
 
-            this.IndexOf = function (what, start) { if (start < 0 || start > length) throw 'Argument start or count is Out Of Range in String.SubString'; return what ? base.indexOf(what, start || 0) : -1; }
+            this.IndexOf = function (what, start) { if (start < 0 || start > length) throw 'Argument start or count is Out Of Range in String.IndexOf'; return what ? base.indexOf(what, start || 0) : -1; }
+
+            this.LastIndexOf = function (what, start) { if (start < 0 || start > length) throw 'Argument start or count is Out Of Range in String.LastIndexOf'; return what ? base.lastIndexOf(what, start || 0) : -1; }
 
             this.ToString = function () { return this; }
 
@@ -693,7 +705,7 @@
 
             this.ToCharArray = function () {
                 var result = [];
-                for (var c = 0; c < length; ++c) result.push(new System.Char(this.SubString(c, 1)));
+                for (var c = 0; c < this.Length; ++c) result.push(new System.Char(this.Substring(c, 1).toString()));
                 return result;
             }
 
@@ -719,11 +731,13 @@
 
         System.String.Empty = '';
 
+        System.String.Intern = function (str) { return str; }
+
         System.String.toString = function () { return 'System.String'; }
 
-        System.String.prototype.IsNull = function () { return this.Length === 0; }
+        System.String.prototype.IsNull = function (/*String what*/) { var what = arguments[0] || this; return what.Length === 0; }
 
-        System.String.prototype.IsNullOrEmpty = function () { return this.IsNull() || this.toString.trim() === System.String.Empty; }
+        System.String.prototype.IsNullOrEmpty = function (/*String what*/) { var what = arguments[0] || this; return this.IsNull() || this.toString.trim() === System.String.Empty; }
 
         Object.freeze(System.String);
 
