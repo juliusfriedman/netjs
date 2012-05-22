@@ -47,6 +47,10 @@
                 }
         }
 
+        //The void
+        function Void() { javascript: void (arguments); }
+
+        Export(Void, window, 'Void');
 
 
         //Security
@@ -150,103 +154,12 @@
         Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class({}); }
 
         //Backup GarbadgeCollector
-        var _CollectGarbadge = typeof CollectGarbage === 'undefined' ? undefined : CollectGarbage;
+        var _CollectGarbadge = typeof CollectGarbadge === 'undefined' ? new Function('return delete this') : CollectGarbadge;
 
         //Garbadge Collector
-        function $CollectGarbadge() { CollectGarbage(); }
+        function $CollectGarbadge() { javascript: with (new Void) (_CollectGarbadge()); }
         $CollectGarbadge.toString = function () { return '$CollectGarbadge' }
         $CollectGarbadge.$abstract = true;
-
-        //Replace
-        CollectGarbage = $CollectGarbadge;
-
-        //Hash of known Object, Handles with a live timeOut
-        $CollectGarbadge.timeOuts = {};
-
-        //Export $CollectGarbadge
-        $Export($CollectGarbadge, window, 'CollectGarbadge');
-
-        //Gets the Type name from the Constructor given (Native/Declared Types Only)
-        function $getTypeName(type) {
-            try {
-                type = typeof type !== 'undefined' ? IsNullOrUndefined(type.GetTypeName) ? type : type.GetTypeName() : type;
-                if (!(typeof type === 'string' || type instanceof String)) {
-                    var result = type.toString().split(' ');
-                    if (result.length === 1) return result[0]; // Qualified Type
-                    else result = result[1];
-                    result = result.toString().substring(0, result.indexOf('(')); //Native
-                    return result;
-                }
-                throw new Error();
-            }
-            catch (_) { return type === null ? null : type === undefined ? undefined : type; }
-        }; //0 = function, 1 = name and  so on => {, [native / code], }
-
-        //Allows a constructor to determine if new was called
-        function $isNewObject(object) { return ((new Object() === object) || (object.toString() === '[object Object]')); }
-
-        //Export $getTypeName to the window as GetTypeName
-        Export($getTypeName, window, 'GetTypeName');
-
-        //Is function
-        function $Is(what, type) {
-            try {
-                if (!type) return $getTypeName(what) === $getTypeName(type);
-                else if (typeof what === $getTypeName(type).toLowerCase()) return true;
-                else if (($getTypeName(what) + '') === ($getTypeName(type) + '')) return true;
-                else if (what instanceof type) return true;
-                else if ($As(what, type)) return true;
-                else for (var i in what.constructor) if (what.constructor.i === type || what.constructor.i === type.constructor) return true;
-                else return false;
-            }
-            catch (_) { return false; }
-        }
-
-        function $IsNull(what) { return what === null; };
-        Export($IsNull, window, 'IsNull');
-
-        function $IsUndefined(what) { return typeof what === 'undefined' || what === undefined; };
-        Export($IsUndefined, window, 'IsUndefined');
-
-        function $IsNullOrUndefined(what) { debugger; return !$IsNull(what) ? false : $IsUndefined(what); }
-        Export($IsUndefined, window, 'IsNullOrUndefined');
-
-        //Export $Is to the window as Is
-        Export($Is, window, 'Is');
-
-        //As
-        function $As(what, type) { try { return new type(what); } catch (_) { return $cast(what, type); } }
-
-        //Export to static
-        Object.as = $As;
-
-        //Export $As to the window as Is
-        Export($As, window, 'As');
-
-        //Export $Is to the window as Is
-        Export($Is, window, 'Is');
-
-        //Export to static
-        Object.is = $Is;
-
-        Export($Is, window, 'Is');
-
-        //Export to prototype
-        //Object.prototype.is = Object.is;
-
-        //Polyfills
-
-        /*<ltIE9>*/
-        if (IsNullOrUndefined(window.addEventListener)) {
-            if (window.attachEvent && !window.addEventListener) {
-                var unloadEvent = function () {
-                    window.detachEvent('onunload', unloadEvent);
-                    document.head = document.html = document.window = null;
-                } .bind(window);
-                window.attachEvent('onunload', unloadEvent);
-                window.addEventListener = window.attachEvent;
-            }
-        }
 
         /*<ltIE9>*/
         if ((navigator.appVersion.indexOf('7.') !== -1 || navigator.appVersion.indexOf('8.') !== -1 && navigator.appVersion.indexOf('MSIE') !== -1)) {
@@ -346,6 +259,104 @@
             Object.isSealed = isSealed;
         }
 
+        //Replace
+        CollectGarbage = $CollectGarbadge;
+
+        //Hash of known Object, Handles with a live timeOut
+        $CollectGarbadge.timeOuts = {};
+
+        //Define the property of TimeToLive = 5 + Minutes in milliseconds
+        Object.defineProperty($CollectGarbadge, 'TimeToLive', { value: 300025 });
+
+        Object.seal($CollectGarbadge);
+        Object.freeze($CollectGarbadge);
+
+        //Export $CollectGarbadge
+        $Export($CollectGarbadge, window, 'CollectGarbadge');
+
+        //Gets the Type name from the Constructor given (Native/Declared Types Only)
+        function $getTypeName(type) {
+            try {
+                type = typeof type !== 'undefined' ? IsNullOrUndefined(type.GetTypeName) ? type : type.GetTypeName() : type;
+                if (!(typeof type === 'string' || type instanceof String)) {
+                    var result = type.toString().split(' ');
+                    if (result.length === 1) return result[0]; // Qualified Type
+                    else result = result[1];
+                    result = result.toString().substring(0, result.indexOf('(')); //Native
+                    return result;
+                }
+                throw new Error();
+            }
+            catch (_) { return type === null ? null : type === undefined ? undefined : type; }
+        }; //0 = function, 1 = name and  so on => {, [native / code], }
+
+        //Allows a constructor to determine if new was called
+        function $isNewObject(object) { return ((new Object() === object) || (object.toString() === '[object Object]')); }
+
+        //Export $getTypeName to the window as GetTypeName
+        Export($getTypeName, window, 'GetTypeName');
+
+        //Is function
+        function $Is(what, type) {
+            try {
+                if (!type) return $getTypeName(what) === $getTypeName(type);
+                else if (typeof what === $getTypeName(type).toLowerCase()) return true;
+                else if (($getTypeName(what) + '') === ($getTypeName(type) + '')) return true;
+                else if (what instanceof type) return true;
+                else if ($As(what, type)) return true;
+                else for (var i in what.constructor) if (what.constructor.i === type || what.constructor.i === type.constructor) return true;
+                else return false;
+            }
+            catch (_) { return false; }
+        }
+
+        function $IsNull(what) { return what === null; };
+        Export($IsNull, window, 'IsNull');
+
+        function $IsUndefined(what) { return typeof what === 'undefined' || what === undefined; };
+        Export($IsUndefined, window, 'IsUndefined');
+
+        function $IsNullOrUndefined(what) { debugger; return !$IsNull(what) ? false : $IsUndefined(what); }
+        Export($IsUndefined, window, 'IsNullOrUndefined');
+
+        //Export $Is to the window as Is
+        Export($Is, window, 'Is');
+
+        //As
+        function $As(what, type) { try { return new type(what); } catch (_) { return $cast(what, type); } }
+
+        //Export to static
+        Object.as = $As;
+
+        //Export $As to the window as Is
+        Export($As, window, 'As');
+
+        //Export $Is to the window as Is
+        Export($Is, window, 'Is');
+
+        //Export to static
+        Object.is = $Is;
+
+        Export($Is, window, 'Is');
+
+        //Export to prototype
+        //Object.prototype.is = Object.is;
+
+        //Polyfills
+
+        /*<ltIE9>*/
+        if (IsNullOrUndefined(window.addEventListener)) {
+            if (window.attachEvent && !window.addEventListener) {
+                var unloadEvent = function () {
+                    window.detachEvent('onunload', unloadEvent);
+                    CollectGarbadge();
+                    document.head = document.html = document.window = null;
+                } .bind(window);
+                window.attachEvent('onunload', unloadEvent);
+                window.addEventListener = window.attachEvent;
+            }
+        }
+
         //Throws for sealed attribute
         function $checkSealed(constructor, derivedConstructor) { if (Object.isSealed(constructor)) throw derivedConstructor.toString() + 'cannot inherit from sealed class' + constructor.toString() + '.'; };
 
@@ -431,9 +442,6 @@
 
         //Expose the CLR as readonly
         Object.defineProperty(window, 'CLR', { value: newScope });
-
-        //Define the property of TimeToLive = 5 + Minutes in milliseconds
-        Object.defineProperty($CollectGarbadge, 'TimeToLive', { value: 300025 });
 
         //The abstract class constructor
         function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + JSON.stringify(constructor) + ', ' + this.$abstract.toString() + ']'; }
