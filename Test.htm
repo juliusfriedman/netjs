@@ -7,27 +7,7 @@
     <!-- <script type="text/javascript" src="linq.rx.js"></script>  -->
     <!-- <script type="text/javascript" src="Reflection.js"></script> -->
     <!-- <script type="text/javascript" src="GenericList.js"></script> -->
-    <script type="text/javascript">
-
-        //Utility Functions
-        function except(ex) { alert(+ex ? 'Message: ' + ex : this.caller.toString()); }
-
-        function ObjectKeysEqual(a, b) {
-            for (var p in a) if (a.hasOwnProperty(p) && !a[p] === b[p]) return false;                
-            return true;
-        }
-
-        function Verify(result, expected) {
-            if (!result.forEach || !result || !isNaN(result) || (true === expected || false === expected)) return result === expected || ObjectKeysEqual(result, expected);
-            if (expected.length) {
-                result = Object.keys(result);
-                expected = Object.keys(expected);
-                if (result.length !== expected.length) return false;
-            }
-            try { result.forEach(function (o, i) { if (o !== expected[i]) throw Error; }); }
-            catch (_) { return false; }
-            return true;
-        }
+    <script type="text/javascript">        
 
         //Classes
 
@@ -46,10 +26,10 @@
         function TestReflection() {
             var myList = new List(),
                 test = Reflection.getArguments(myList.Add);
-            if (!Verify(test, ['object'])) except('Wrong Return');
+            if (!System.Diagnostics.Assert(test, ['object'])) except('Wrong Return');
 
             test = Reflection.getArguments(myList.Reverse);
-            if (!Verify(test, ['index', 'count'])) except('Wrong Return');
+            if (!System.Diagnostics.Assert(test, ['index', 'count'])) except('Wrong Return');
         }
 
         function TestCast() {
@@ -59,8 +39,8 @@
             yaComposed = test.cast(Number, function () {
                 return this + anotherTest
             });
-            if (!Verify(composed, 1)) except('Wrong Return');  //Because both types overload to return numbers which should equal 1 by default 0 + 1 = 1;
-            if(!Verify(yaComposed, 1)) except('Wrong Return'); //Because test Casted as a Number return 0 added to the derived class which overloads + to return a number which is default 1;
+            if (!System.Diagnostics.Assert(composed, 1)) except('Wrong Return');  //Because both types overload to return numbers which should equal 1 by default 0 + 1 = 1;
+            if(!System.Diagnostics.Assert(yaComposed, 1)) except('Wrong Return'); //Because test Casted as a Number return 0 added to the derived class which overloads + to return a number which is default 1;
             
             //Should fail because anotherClass hides the function cast
             try {
@@ -74,7 +54,7 @@
                 return this + anotherTest
             });
 
-            if (!Verify(t, 2)) except('Wrong Return');  //Because test is casted to anotherClass which gives it a default value of 1 and 1 + 1 = 2;
+            if (!System.Diagnostics.Assert(t, 2)) except('Wrong Return');  //Because test is casted to anotherClass which gives it a default value of 1 and 1 + 1 = 2;
 
             //Should fail because anotherClass hides the function cast
             try {
@@ -117,15 +97,15 @@
 
             anotherStringForm = myList.Where("(c) => c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default"); // 4 in Count, 1 Acura and 3 Default Cars
 
-            if (!Verify(anotherStringForm[1], new Car('Acura', 'TL'))) alert('Bug');
+            if (!System.Diagnostics.Assert(anotherStringForm[1], new Car('Acura', 'TL'))) alert('Bug');
 
             anotherStringForm = myList.Where(function (c) { return c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default });  // 4 in Count, 1 Acura and 3 Default Cars
 
-            if (!Verify(anotherStringForm[1], new Car('Acura', 'TL'))) alert('Bug');
+            if (!System.Diagnostics.Assert(anotherStringForm[1], new Car('Acura', 'TL'))) alert('Bug');
 
             var aDefault = myList.FirstOrDefault(function (c) { c.make === 'Nissan'; }); //Accidently left the return off so there is an undefined result
 
-            if (!Verify(anotherStringForm[1], Car.$default)) alert('Bug');
+            if (!System.Diagnostics.Assert(anotherStringForm[1], Car.$default)) alert('Bug');
 
             var selList = myList.Where("make == 'Honda'").OrderByDescending("model").Distinct(); //2 in Count
             var anotherList = myList.Where(function () { return this.make == 'Honda' }).OrderByDescending("model").Distinct(); //2 in Count

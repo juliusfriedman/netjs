@@ -617,7 +617,144 @@
         Export(CLRObject, window, 'CLRObject');
 
         //The System Object
-        var System = {};
+        var System = {}; //Might need a namespace construct
+
+        //Array like Getter/Setter Logic, creates a getter for the List to access the inner array at the given index
+        function $CreateGetterSetter(clrString, index) {
+            try {
+                Object.defineProperty(clrString, index, {
+                    get: function () {
+                        if (index < 0 || index >= base.length) throw "index parameter out of range in String.Get";
+                        return clrString.charAt(index);
+                    },
+                    set: function (value) {
+                        if (!value instanceof System.Char) return;
+                        if (index < 0 || index >= base.length) throw "index parameter out of range in String.Set";
+                        clrString[index] = value;
+                    }
+                });
+            }
+            catch (_) { }
+        }
+
+        /*public struct */System.Char = function (c) {
+            c = String(c);
+
+            var base = c, //Might need a struct construct
+                innerChar = c.charAt(0),
+                innerNumber = Number(innerChar),
+                innerString = String(c);
+
+            if (/*base.length > 1 ||*/innerChar < 0 || innerChar > 255) throw 'Invalid Value for Char';
+
+            this.ToString = function () { return new System.String(base); }
+
+            this.toString = function () { return base.toString(); }
+
+            this.ToLowerCase = function () { return base.toLowerCase(); }
+
+            this.ToUpperCase = function () { return base.toUpperCase(); }
+
+        }
+        System.Char.toString = function () { return 'System.Char'; }
+
+
+        Subclass(Class, System.Char);
+
+        /*public sealed class */System.String = function (jsString) {
+            jsString = String(jsString); //Promote string to String and guard against undefined or null
+
+            var base = jsString,
+                length = jsString.length;
+
+            this.StartsWith = function (str) {
+                try {
+                    str = str + ''; //Guard against null and undefined
+                    return base.substring(0, str.length) === str;
+                } catch (_) { return false; }
+            }
+
+            this.EndsWith = function (str) {
+                try {
+                    str = str + ''; //Guard against null and undefined
+                    return base.substring(base.length - str.length) === str;
+                } catch (_) { return false; }
+            }
+
+            this.SubString = function (start, count) { if (start < 0 || start > length || count > length || count < 0) throw 'Argument start or count is Out Of Range in String.SubString'; return new System.String(base.substring(start, length - start - (count || 0))); }
+
+            this.IndexOf = function (what, start) { if (start < 0 || start > length) throw 'Argument start or count is Out Of Range in String.SubString'; return what ? base.indexOf(what, start || 0) : -1; }
+
+            this.ToString = function () { return this; }
+
+            this.valueOf = function () { return base; };
+
+            this.toString = function () { return base; };
+
+            this.ToCharArray = function () {
+                var result = [];
+                for (var c = 0; c < length; ++c) result.push(new System.Char(this.SubString(c, 1)));
+                return result;
+            }
+
+            this.Reverse = function () { return new System.String(this.ToCharArray().reverse().join(System.String.Empty)); }
+
+            Object.defineProperty(this, 'Length', {
+                enumerable: true,
+                get: function () { return length; }
+            });
+
+            (function (self, counter) { while (counter >= 0) $CreateGetterSetter(self, --counter); })(this, length);
+
+            CleanPrototype(this);
+
+            Object.seal(this);
+
+            Object.freeze(this);
+        }
+
+        Subclass(System.String, Class);
+
+        Subclass(System.String, String);
+
+        System.String.Empty = '';
+
+        System.String.toString = function () { return 'System.String'; }
+
+        System.String.prototype.IsNull = function () { return this.Length === 0; }
+
+        System.String.prototype.IsNullOrEmpty = function () { return this.IsNull() || this.toString.trim() === System.String.Empty; }
+
+        Object.freeze(System.String);
+
+        Object.seal(System.String);
+
+        //Diagnostics
+
+        function ObjectKeysEqual(a, b) {
+            for (var p in a) if (a.hasOwnProperty(p) && !a[p] === b[p]) return false;
+            return true;
+        }
+
+        System.Diagnostics = {};
+
+        System.Diagnostics.Assert = function Verify(result, expected) {
+            if (!result.forEach || !result || !isNaN(result) || (true === expected || false === expected)) return result === expected || ObjectKeysEqual(result, expected);
+            if (expected.length) {
+                result = Object.keys(result);
+                expected = Object.keys(expected);
+                if (result.length !== expected.length) return false;
+            }
+            try { result.forEach(function (o, i) { if (o !== expected[i]) throw Error; }); }
+            catch (_) { return false; }
+            return true;
+        }
+
+        System.Diagnostics.Except = function Except(ex) { alert(+ex ? 'Message: ' + ex : this.caller.toString()); }
+
+        Export(System, window, 'System');
+
+
 
         //Classes for testing
 

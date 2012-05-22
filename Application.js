@@ -72,14 +72,15 @@ Load dependancies for the application, including stylesheets
                     this.pageProjects = [];
                     return;
                 },
-                //Make this work... if you need the power of Jay just ask but I want this to work!
-                fixPoweredByImage: function () { //move to Map class and make work without recursion
+                fixPoweredByImage: function () { //move to Map class and make work without recursion, use quantified notation after a dfs to identify the selector
                     $(m_Settings.defaultMapID).getElements('div.img').each(function (el) {
-                        if (el.src && el.src.match('poweredby')) {
+                        if (el.src && el.src.contains('poweredby')) {
                             el.style.filter = "progid:DXImageTransform.Microsoft.AlphaImageLoader(sizingMethod='crop', src='tcm/resources/images/asti.png')";
                             el.src = 'tcm/resources/images/asti.png';
                             el.set('src', 'tcm/resources/images/asti.png');
-                            el.__src__ = 'tcm/resources/images/asti.png'; //setAttribute?
+                            el.__src__ = 'tcm/resources/images/asti.png';
+                            el.setAttribute('__src__', 'tcm/resources/images/asti.png');
+                            el.removeEvents();
                             el.addEvent('click', window.open.pass('http://www.asti-trans.com'));
                         }
                     });
