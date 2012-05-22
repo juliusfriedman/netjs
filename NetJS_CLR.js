@@ -4,6 +4,9 @@
 
         //.Net JavaScript (this should be a new scope)
         var newScope = this,
+        args = arguments,
+        callee = arguments.callee,
+        caller = arguments.caller,
         CLRItself = {
             version: {
                 major: 0.1,
@@ -66,7 +69,8 @@
 
         //Checks a scope
         Security.checkScope = function () {
-            if (this.toString() === CLRItself.toString()) return true; //Not very secure :P
+            if (this === newScope || this === CLRItself) return true;
+            if (this === callee || this === caller) return false;
             try {
                 var stackPointer = undefined,
                 cycle = -1;
@@ -121,14 +125,14 @@
             return this === newScope; //Should never happen unless ...
         }
 
-        //Export $isCLR as isCLR
-        Export($isCLR, window, 'isCLR');
+        //Export $isCLR as IsCLR
+        Export($isCLR, window, 'IsCLR');
 
         //Checks for CLR Scope
         function $checkCLR() { if (!$isCLR()) throw 'The CLR is required to access this scope'; }
 
-        //Export $checkCLR as checkCLR
-        Export($checkCLR, window, 'checkCLR');
+        //Export $checkCLR as CheckCLRAccess
+        Export($checkCLR, window, 'CheckCLRAccess');
 
         //Backup the old apply function
         var Function$prototype$apply = Function.prototype.apply
@@ -190,15 +194,18 @@
                 if (!type) return $getTypeName(what) === $getTypeName(type);
                 else if (typeof what === $getTypeName(type).toLowerCase()) return true;
                 else if (($getTypeName(what) + '') === ($getTypeName(type) + '')) return true;
-                else return what instanceof type;
+                else if (what instanceof type) return true;
+                else if ($As(what, type)) return true;
+                else for (var i in what.constructor) if (what.constructor.i === type || what.constructor.i === type.constructor) return true;
+                else return false;
             }
             catch (_) { return false; }
         }
 
-        function $IsNull(what) { return what == null; };
+        function $IsNull(what) { return what === null; };
         Export($IsNull, window, 'IsNull');
 
-        function $IsUndefined(what) { return typeof what === 'undefined' || what == undefined; };
+        function $IsUndefined(what) { return typeof what === 'undefined' || what === undefined; };
         Export($IsUndefined, window, 'IsUndefined');
 
         function $IsNullOrUndefined(what) { debugger; return !$IsNull(what) ? false : $IsUndefined(what); }
@@ -228,6 +235,18 @@
         //Object.prototype.is = Object.is;
 
         //Polyfills
+
+        /*<ltIE9>*/
+        if (IsNullOrUndefined(window.addEventListener)) {
+            if (window.attachEvent && !window.addEventListener) {
+                var unloadEvent = function () {
+                    window.detachEvent('onunload', unloadEvent);
+                    document.head = document.html = document.window = null;
+                } .bind(window);
+                window.attachEvent('onunload', unloadEvent);
+                window.addEventListener = window.attachEvent;
+            }
+        }
 
         /*<ltIE9>*/
         if ((navigator.appVersion.indexOf('7.') !== -1 || navigator.appVersion.indexOf('8.') !== -1 && navigator.appVersion.indexOf('MSIE') !== -1)) {
@@ -476,18 +495,6 @@
 
         Security.addSafeScope(Class, 3, $subclass);
 
-        /*<ltIE9>*/
-        if (IsNullOrUndefined(window.addEventListener)) {
-            if (window.attachEvent && !window.addEventListener) {
-                var unloadEvent = function () {
-                    window.detachEvent('onunload', unloadEvent);
-                    document.head = document.html = document.window = null;
-                } .bind(window);
-                window.attachEvent('onunload', unloadEvent);
-                window.addEventListener = window.attachEvent;
-            }
-        }
-
         window.addEventListener('unload', function () {
             //For each type in the linker
             for (var t in $subclass.linker) {
@@ -536,17 +543,17 @@
             catch (_) { throw abstractConstructor(instance); }
         }
 
-        //Make the concept of abstract
-        //Possibly should be true so functions cannot be called new on accident
-        Object.defineProperty(Function.prototype, 'abstract', {
-            //writable: false,
-            enumerable: true,
-            configurable: false,
-            get: function () {
-                return this.$abstract || false;
-            },
-            set: function (value) { return this.$abstract = value; }
-        });
+        //        //Make the concept of abstract
+        //        //Possibly should be true so functions cannot be called new on accident
+        //        Object.defineProperty(Function.prototype, 'abstract', {
+        //            //writable: false,
+        //            enumerable: true,
+        //            configurable: false,
+        //            get: function () {
+        //                return this.$abstract || false;
+        //            },
+        //            set: function (value) { return this.$abstract = value; }
+        //        });
 
         //Pseudo Classes
         var baseClass = defaultConstructor; //(this);
@@ -798,7 +805,7 @@
         myClass.toString = function () { return /*'[object baseClass */'myClass'/*]'*/; };
 
         //Ensure instanceof works correctly
-        $subclass(myClass, baseClass);
+        Subclass(myClass, baseClass);
 
         Export(myClass, window);
 
@@ -823,7 +830,7 @@
         anotherClass.toString = function () { return /*'[object myClass */'anotherClass'/*]'*/; };
 
         //Ensure instanceof works correctly
-        $subclass(anotherClass, myClass);
+        Subclass(anotherClass, myClass);
 
         Export(anotherClass, window);
 
@@ -840,13 +847,19 @@
         var $Function$prototype$call = Function.prototype.call;
 
         //New call function intercept, should never call the abstractConstructor unless from a derived class and this ensures it
-        Function.prototype.call = function () { return this.$abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : $Function$prototype$call.apply(this, arguments) };
+        Function.prototype.call = function () {
+            if (IsCLR()) {
+                //Should ConvertLegacyArguments before call and save them seprately. After which it should check for any parameters with IsIn
+                //After calling it should then check for any parameters with IsOut and ensure value was set in function. 
+            }
+            return this.$abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : $Function$prototype$call.apply(this, arguments)
+        };
 
         //Calls the function with named arguments if given using call intercept
         function callWithArguments(/*bind*/) {
             if (arguments.length) {
                 var args = [], bind = arguments[0] || this;
-                for (var i = 0, e = arguments.length; i < e; ++i) args.push(arguments[i]);
+                for (var i = 0, e = arguments.length - 1; i < e; ++i) args.push(arguments[i]);
                 args.push(bind ? bind : bind.bind(bind));
                 return ((new Function(args)).call());
             }
@@ -1056,6 +1069,8 @@
         Reflection.getArguments = function (func) { return new ParameterInfo(func); }
 
         Export(Reflection, window, 'Reflection');
+
+        System.Reflection = Reflection;
 
         //Function.prototype.getArguments = function () { return Reflection.getArguments(this); }
 
