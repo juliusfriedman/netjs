@@ -165,7 +165,7 @@
         //Gets the Type name from the Constructor given (Native/Declared Types Only)
         function $getTypeName(type) {
             try {
-                type = typeof type !== 'undefined' ? type : this.GetTypeName();
+                type = typeof type !== 'undefined' ? IsNullOrUndefined(type.GetTypeName) ? type : type.GetTypeName() : type;
                 if (!(typeof type === 'string' || type instanceof String)) {
                     var result = type.toString().split(' ');
                     if (result.length === 1) return result[0]; // Qualified Type
@@ -195,13 +195,13 @@
             catch (_) { return false; }
         }
 
-        function $IsNull(what) { return typeof what === 'object' && what === null; ; };
+        function $IsNull(what) { return what == null; };
         Export($IsNull, window, 'IsNull');
 
-        function $IsUndefined(what) { return typeof what === 'undefined'; };
+        function $IsUndefined(what) { return typeof what === 'undefined' || what == undefined; };
         Export($IsUndefined, window, 'IsUndefined');
 
-        function $IsNullOrUndefined(what) { return $IsNull(what) || $IsUndefined(what); }
+        function $IsNullOrUndefined(what) { debugger; return !$IsNull(what) ? false : $IsUndefined(what); }
         Export($IsUndefined, window, 'IsNullOrUndefined');
 
         //Export $Is to the window as Is
@@ -669,6 +669,8 @@
 
         Subclass(Class, System.Char);
 
+        //TODO Implement GetTypeName from CLRObject
+
         /*public sealed class */System.String = function (jsString) {
             jsString = String(jsString); //Promote string to String and guard against undefined or null
 
@@ -725,9 +727,9 @@
             Object.freeze(this);
         }
 
-        Subclass(System.String, Class);
+        Subclass(Class, System.String);
 
-        Subclass(System.String, String);
+        Subclass(String, System.String);
 
         System.String.Empty = '';
 
@@ -738,6 +740,8 @@
         System.String.prototype.IsNull = function (/*String what*/) { var what = arguments[0] || this; return what.Length === 0; }
 
         System.String.prototype.IsNullOrEmpty = function (/*String what*/) { var what = arguments[0] || this; return this.IsNull() || this.toString.trim() === System.String.Empty; }
+
+        System.String.prototype.GetTypeName = System.String.toString;
 
         Object.freeze(System.String);
 
