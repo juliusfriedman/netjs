@@ -403,7 +403,7 @@
             this.Contains = function (object, start) {
                 if (!object) return false;
                 var contained = false,
-            keys = Object.keys(object);
+                keys = Object.keys(object);
                 start = start || 0;
                 //Iterate list
                 listArray.forEach(function (tEl) {
@@ -916,8 +916,8 @@
         window.addEventListener('unload', function () {
             //For each type in the linker
             for (var t in $Subclass.Linker) {
-                var _t = Array.from(t.split($Subclass.Linker.LinkSymbol));
-                t.forEach(function (name, index) {
+                var _t = t.split($Subclass.Linker.LinkSymbol);
+                _t.forEach(function (name, index) {
                     //If there is a type in the linker with the name t
                     if ($Subclass.Linker.hasOwnProperty(t)) {
                         //If the t is a constructor
@@ -1295,6 +1295,8 @@
             return this.$abstract ? $abstractConstructor(this.base || this.constructor || this.prototype || this) : $Function$prototype$call.apply(this, arguments)
         };
 
+        Security.addSafeScope(Function$prototype$apply, 3, Function.prototype.call);
+
         //Calls the function with named arguments if given using call intercept
         function callWithArguments(/*bind*/) {
             if (arguments.length) {
@@ -1662,15 +1664,15 @@
 
         var FunctionHidden = {};
 
-        Function.prototype.hide = function () { return FunctionHidden[this] = true; }
+        Function.prototype.hide = function () { FunctionHidden[this] = true; return this; }
 
-        Function.unhide = function () { CheckCLRAccess(); return FunctionHidden[this] = false; }
+        Function.unhide = function () { CheckCLRAccess(); FunctionHidden[this] = false; return this; }
 
         var FunctionProtected = {};
 
-        Function.prototype.protect = function () { return FunctionProtected[this] = true; }
+        Function.prototype.protect = function () { FunctionProtected[this] = true; return this; }
 
-        Function.unprotect = function () { CheckCLRAccess(); return FunctionProtected[this] = false; }
+        Function.unprotect = function () { CheckCLRAccess(); FunctionProtected[this] = false; return this; }
 
         Function.implement({
 
@@ -1711,6 +1713,10 @@
                         return lower;
                     }).hide();
 
+                    object.prototype.GetType = (function () {
+                        return name || $GetTypeName(this);
+                    }).hide();
+
                 }
             }
 
@@ -1735,9 +1741,9 @@
         };
 
         var implement = function (name, method) {
-            if (method && method.$hidden) return;
+            if (method && FunctionHidden[method]) return;
 
-            var hooks = hooksOf(this);//....
+            var hooks = hooksOf(this); //....
 
             for (var i = 0; i < hooks.length; i++) {
                 var hook = hooks[i];
@@ -1746,16 +1752,16 @@
             }
 
             var previous = this.prototype[name];
-            if (previous == null || !previous.$protected) this.prototype[name] = method;
+            if (previous == null || !FunctionProtected[previous]) this.prototype[name] = method;
 
             if (this[name] == null && typeOf(method) == 'function') extend.call(this, name, function (item) { return method.apply(item, slice.call(arguments, 1)); });
 
         };
 
         var extend = function (name, method) {
-            if (method && method.$hidden) return;
+            if (method && FunctionHidden[method]) return;
             var previous = this[name];
-            if (previous == null || !previous.$protected) this[name] = method;
+            if (previous == null || !FunctionProtected[previous]) this[name] = method;
         };
 
         // Default Types
@@ -1826,10 +1832,10 @@
             return +(new Date);
         });
 
-        new Type('Boolean', Boolean);
+        $Export(new Type('Boolean', Boolean), window, 'Boolean');
 
 
-        new Type('Number', Number);
+        $Export(new Type('Number', Number), window, 'TyNumberpe');
 
         // fixes NaN returning as Number
 
@@ -2871,7 +2877,7 @@
             var wrap = function (self, key, method) {
                 if (method.$origin) method = method.$origin;
                 var wrapper = function () {
-                    if (method.$protected && this.$caller == null) throw new Error('The method "' + key + '" cannot be called.');
+                    if (FunctionProtected[method] && this.$caller == null) throw new Error('The method "' + key + '" cannot be called.');
                     var caller = this.caller, current = this.$caller;
                     this.caller = current; this.$caller = wrapper;
                     var result = method.apply(this, arguments);
@@ -2888,7 +2894,8 @@
                 }
 
                 if (typeOf(value) == 'function') {
-                    if (value.$hidden) return this;
+                    if (FunctionHidden[value]) return this;
+                    //if (value.$hidden) return this;
                     this.prototype[key] = (retain) ? value : wrap(this, key, value);
                 } else {
                     Object.merge(this.prototype, key, value);
@@ -2937,7 +2944,7 @@
         //Object.prototype._constructor = Object.prototype.constructor;
 
         //Replace object constructor
-        Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class({}); }
+        //Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class({}); }
 
         //Return the CLR
         return CLRItself;
