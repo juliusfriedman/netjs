@@ -895,9 +895,7 @@
             if (inheritMembers && isInstance && derivedConstructor.$inheritsMembers === true) for (var j in constructor) if (!(j === 'prototype') && !i.indexOf('$') >= 0) derivedConstructor[j] = constructor[j];
 
             //Store __TypeName only if previously undefined
-            if (IsNullOrUndefined(derivedConstructor.__TypeName)) Object.defineProperty(derivedConstructor, '__TypeName', {
-                get: function () { return linkedName; }
-            });
+            if (IsNullOrUndefined(derivedConstructor.__TypeName)) Object.defineProperty(derivedConstructor, '__TypeName', { get: function () { return linkedName; } });
 
             // Ensure the base keyword works in the scope of the class. Take note that Only Null Values are checked. Undefined will be allowed to bypass as a baseless type.
             if (IsNull(derivedConstructor.base)) Object.defineProperty(derivedConstructor, 'base', { value: constructor });
@@ -988,19 +986,19 @@
         Export(baseClass, window);
 
 
-        //SSPC
-        var TypeDescriptorHash = {};
+        //SSPC - might need to move this up with Subclass
+        var ClassTypeDescriptorHash = {};
 
         //If the base class is abstract return the reference to it otherwise return the reference to the result of $Subclass given this instance and the baseClass
         function CLRClass(argumentz) {
             var base = this.base || this.constructor || this.prototype, typeName;
             typeName = $GetTypeName(base);
-            TypeDescriptorHash[typeName] = TypeDescriptorHash[typeName] || {
+            ClassTypeDescriptorHash[typeName] = ClassTypeDescriptorHash[typeName] || {
                 get: function () { return typeName; },
-                set: function (value) { $CheckCLRAccess(); TypeDescriptorHash[this] = value; }
+                set: function (value) { $CheckCLRAccess(); ClassTypeDescriptorHash[this] = value; }
             };
 
-            Object.defineProperty(this, '__TypeName', TypeDescriptorHash[typeName]); // Ensure the __TypeName is present                        
+            Object.defineProperty(this, '__TypeName', ClassTypeDescriptorHash[typeName]); // Ensure the __TypeName is present                        
 
             //CLR Methods
             this.toString = function () { return this.__TypeName; }
