@@ -1712,11 +1712,6 @@
                     object.prototype.$family = (function () {
                         return lower;
                     }).hide();
-
-                    object.prototype.GetType = (function () {
-                        return name || $GetTypeName(this);
-                    }).hide();
-
                 }
             }
 
@@ -1835,7 +1830,7 @@
         $Export(new Type('Boolean', Boolean), window, 'Boolean');
 
 
-        $Export(new Type('Number', Number), window, 'TyNumberpe');
+        $Export(new Type('Number', Number), window, 'Number');
 
         // fixes NaN returning as Number
 
@@ -2895,7 +2890,6 @@
 
                 if (typeOf(value) == 'function') {
                     if (FunctionHidden[value]) return this;
-                    //if (value.$hidden) return this;
                     this.prototype[key] = (retain) ? value : wrap(this, key, value);
                 } else {
                     Object.merge(this.prototype, key, value);
