@@ -750,21 +750,7 @@
         //Export $checkCLR as CheckCLRAccess
         Export($checkCLR, window, 'CheckCLRAccess');
 
-        //Backup the old apply function
-        var Function$prototype$apply = Function.prototype.apply
-
-        //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
-        Function.prototype.apply = function () {
-            $checkCLR();
-            try { return Function$prototype$apply(this, arguments); }
-            catch (_) { return Function$prototype$apply; }
-            return void (this);
-        }
-
-        //Object.prototype._constructor = Object.prototype.constructor;
-
-        //Replace object constructor
-        Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class({}); }
+        var Function = window.Function;
 
         //Backup GarbadgeCollector
         var _CollectGarbadge = typeof CollectGarbadge === 'undefined' ? new Function('return delete this') : CollectGarbadge;
@@ -773,104 +759,6 @@
         function $CollectGarbadge() { javascript: with (new Void) _CollectGarbadge(); }
         $CollectGarbadge.toString = function () { return '$CollectGarbadge' }
         $CollectGarbadge.$abstract = true;
-
-        /*<ltIE9>*/
-        if ((navigator.appVersion.indexOf('7.') !== -1 || navigator.appVersion.indexOf('8.') !== -1 && navigator.appVersion.indexOf('MSIE') !== -1)) {
-            //Backup prototype
-            var Object$prototyoe = Object.prototype;
-            //Set the prototype to the Element Constructor
-            Object.prototype = document.createElement;
-            //Backup defineProperty cause IE8 has it but only is valid for Elements.
-            var Object$defineProperty = Object.defineProperty;
-            //Undefine defineProperty
-            Object.defineProperty = undefined;
-        }
-
-        if (!Function.prototype.bind) {
-            if (!Function.prototype.bind) {
-                Function.prototype.bind = function (context) {
-                    var oldRef = this;
-                    return function () {
-                        return oldRef.apply(context || null, Array.prototype.slice.call(arguments));
-                    };
-                }
-            }
-            Security.addSafeScope(Function.prototype.call, 2, Function.prototype.bind);
-            Security.addSafeScope(Function.prototype.bind, 2, Function.prototype.apply);
-        }
-
-        if (!Array.prototype.indexOf) {
-            Array.prototype.indexOf = function (item, from) {
-                var length = this.length >>> 0;
-                for (var i = (from < 0) ? Math.max(0, length + from) : from || 0; i < length; i++) {
-                    if (this[i] === item) return i;
-                }
-                return -1;
-            }
-        }
-
-        if (!Array.prototype.forEach) {
-            Array.prototype.forEach = function (fn, bind) {
-                for (var i = 0, l = this.length; i < l; i++) {
-                    if (i in this) fn.call(bind, this[i], i, this);
-                }
-            }
-        }
-
-        if (!Object.forEach) {
-            Object.forEach = function (object, fn, bind) {
-                for (var key in object) {
-                    if (Object.hasOwnProperty(object, key)) fn.call(bind, object[key], key, object);
-                }
-            }
-        }
-
-        if (!Object.keys) {
-            Object.keys = function (that) {
-                var results = [];
-                for (var p in that)
-                    if (that.hasOwnProperty(p))
-                        results.push(that.p);
-                return results;
-            };
-        }
-
-        //Polyfill for freeze
-        if (!Object.freeze) {
-
-            //Memory for frozen objects
-            var $freezer = {}
-
-            //Puts the ice on
-            function ice(object) { $freezer[object] = true; }
-
-            //Takes the ice off
-            function thaw(object) { delete $freezer[object]; }
-
-            //Freeze the object
-            function freeze(object) { return ice(object); }
-
-            function isFrozen(object) { return $freezer[object] === true; }
-
-            //Export
-            Object.freeze = freeze;
-            Object.isFrozen = isFrozen;
-        }
-
-        //Polyfill for seal
-        if (!Object.seal) {
-
-            //Memory for sealed objects
-            var $sealed = {};
-
-            function seal(object) { $sealed[object] = true; }
-
-            function isSealed(object) { return $sealed[object] ? true : false; }
-
-            //Export
-            Object.seal = seal;
-            Object.isSealed = isSealed;
-        }
 
         //Replace
         CollectGarbage = $CollectGarbadge;
@@ -953,140 +841,45 @@
         Export($Is, window, 'Is');
 
         //Export to prototype
-        //Object.prototype.is = Object.is;
-
-        //Polyfills
-
-        /*<ltIE9>*/
-        if (IsNullOrUndefined(window.addEventListener)) {
-            if (window.attachEvent && !window.addEventListener) {
-                var unloadEvent = function () {
-                    window.detachEvent('onunload', unloadEvent);
-                    CollectGarbadge();
-                    document.head = document.html = document.window = null;
-                } .bind(window);
-                window.attachEvent('onunload', unloadEvent);
-                window.addEventListener = window.attachEvent;
-            }
-        }
-
-        //Throws for sealed attribute
-        function $checkSealed(constructor, derivedConstructor) { if (Object.isSealed(constructor)) throw derivedConstructor.toString() + 'cannot inherit from sealed class' + constructor.toString() + '.'; };
-
-        //Polyfill for defineProperty
-        if (IsNullOrUndefined(Object.defineProperty)) {
-            var descriptorHash = {};
-
-            function legacyGet(object, property, descriptor) {
-                return descriptor.value ? descriptor.value.valueOf() :
-                descriptor.get ? descriptor.get.bind(object)() : object[property];
-            }
-
-            $Export(legacyGet, window, 'legacyGet');
-
-            function legacySet(object, property, descriptor, value) {
-                if (!descriptor.writeable || (descriptor.enforceType && !(value instanceof descriptor.value))) return;
-                object[property] = value;
-            }
-
-            $Export(legacyGet, window, 'legacySet')
-
-            function legacyIterate(object) {
-                ///TODO
-                for (var m in object) {
-                    //Kinda Need LINQ Yield here
-                }
-            }
-
-            function setDescriptor(object, property, newDescriptor) {
-                if (!object || !property) return;
-                var existing = descriptorHash[object][property];
-                if (existing && !existing.configurable) throw 'Cannot modify the existing descriptor for the non-configurable property: "' + property + '"';
-                defineProperty(object, name, newDescriptor || {
-                    enumerable: newDescriptor.enumerable || false,
-                    writeable: newDescriptor.writeable || false,
-                    configurable: descriptor.configurable || false,
-                    value: newDescriptor.value || null,
-                    enforceType: descriptor.enforceType || false,
-                    get: newDescriptor.get || undefined,
-                    set: newDescriptor.set || undefined
-                });
-                //Store last version
-                descriptorHash[object][property]._previous = existing;
-            }
-
-            $Export(setDescriptor, window, 'setDescriptor');
-
-
-            //Adds a property to an object with getter, setter and descriptor support
-            function defineProperty(object, name, descriptor) {
-                if (!object || !name) return;
-                if (!IsNullOrUndefined(descriptor.value) && !IsNullOrUndefined(descriptor.get)) throw 'Descriptor cannot contain a value and a getter';
-                descriptor = {
-                    enumerable: descriptor.enumerable || false,
-                    writeable: descriptor.writeable || false,
-                    configurable: descriptor.configurable || false,
-                    value: descriptor.value || null,
-                    enforceType: descriptor.enforceType || false,
-                    get: descriptor.get ? descriptor.get : function () { return legacyGet(object, name, descriptor); } .bind(object),
-                    set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(object, name, descriptor, value); } .bind(object) : function () { }
-                };
-
-                //Create getter / setter - might need to do a call scan to determine if this is an assignment
-                var getterSetter = function (value) { return (IsNullOrUndefined(value) || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
-
-                //Create value proxy object
-                var valueProxy = {
-                    valueOf: function () { return getterSetter(arguments); },
-                    toString: function () { return this.valueOf().toString(); }
-                }
-
-                //Store on object if enumerable
-                if (descriptor.enumerable) object[name] = valueProxy;
-
-                //Store in descriptor hash
-                descriptorHash[object] = {};
-                descriptorHash[object][name] = descriptor;
-            }
-
-            //Augment Object
-            Object.defineProperty = defineProperty;
-        }
+        //Object.prototype.is = Object.is;        
 
         //Expose the CLR as readonly
         Object.defineProperty(window, 'CLR', { value: newScope });
 
         //The abstract class constructor
-        function abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + JSON.stringify(constructor) + ', ' + this.$abstract.toString() + ']'; }
+        function $abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + JSON.stringify(constructor) + ', ' + this.$abstract.toString() + ']'; }
+
+        //Throws for sealed attribute
+        function $checkSealed(constructor, derivedConstructor) { if (Object.isSealed(constructor)) throw derivedConstructor.toString() + 'cannot inherit from sealed class' + constructor.toString() + '.'; };
 
         //http://www.golimojo.com/etc/js-subclass.html
         //Modified for netjs by Julius Friedman
         //Description: Helps interpreterd code to function correctly after compile with respect to instanceof
-        function $subclass(constructor, derivedConstructor/*,Boolean inheritMembers = false, Boolean inheritPrototype = false*/) {
+        function $Subclass(constructor, derivedConstructor/*,Boolean inheritMembers = false, Boolean inheritPrototype = false*/) {
 
             //Ensure constructor is not sealed
             $checkSealed(constructor, derivedConstructor);
 
             var inheritMembers = arguments[2] || false,
                 inheritPrototype = arguments[3] || false,
-                linkedName = '_type_' + derivedConstructor.toString() + '_^_' + constructor.toString(),
+                linkedName = $Subclass.Linker.TypePrefix + derivedConstructor.toString() + $Subclass.Linker.LinkSymbol + constructor.toString(),
                 isInstance = $isNewObject(constructor);
 
-            if (!($subclass.linker[linkedName] && $subclass.linker[linkedName].constructor === constructor)) {
+            if (!($Subclass.Linker[linkedName] && $Subclass.Linker[linkedName].constructor === constructor)) {
 
                 //Note weather or not the derivedConstructor inherits the members of the base
                 derivedConstructor.$inheritsMembers = inheritMembers;
 
-                if (constructor.$abstract && !derivedConstructor) abstractConstructor(constructor);
+                if (constructor.$abstract && !derivedConstructor) $abstractConstructor(constructor);
 
-                var surrogateConstructor = $subclass.linker['_ctor_' + linkedName + '_^_SurrogateConstructor'] = function () { return constructor.apply ? constructor.apply(derivedConstructor) : undefined; }
+                var surrogateConstructor = $Subclass.Linker[$Subclass.Linker.ConstructorPrefix + linkedName + $Subclass.Linker.LinkSymbol + $Subclass.Linker.SurrogateConstructorPostFix] = function () { return constructor.apply ? constructor.apply(derivedConstructor) : undefined; }
 
                 //Todo
                 //Check for Disposable and implement unload?
 
                 surrogateConstructor.prototype = derivedConstructor.prototype;
 
-                var prototypeObject = $subclass.linker[linkedName] = new surrogateConstructor();
+                var prototypeObject = $Subclass.Linker[linkedName] = new surrogateConstructor();
                 prototypeObject.constructor = constructor;
 
                 constructor.prototype = prototypeObject;
@@ -1101,67 +894,74 @@
             if (inheritMembers && isInstance && derivedConstructor.$inheritsMembers === true) for (var j in constructor) if (!(j === 'prototype')) derivedConstructor[j] = constructor[j];
 
             //Store __TypeName only if previously undefined
-            if (IsNullOrUndefined(derivedConstructor.__TypeName)) Object.defineProperty(derivedConstructor, '__TypeName', {
+            if (IsNull(derivedConstructor.__TypeName)) Object.defineProperty(derivedConstructor, '__TypeName', {
                 get: function () { return linkedName; }
             });
+
+            // Ensure the base keyword works in the scope
+            if (IsNullOrUndefined(derivedConstructor.base)) Object.defineProperty(derivedConstructor, 'base', { value: constructor });
 
             //Return the new constructor
             return derivedConstructor;
         }
 
         //Memory for the pseudo type system
-        $subclass.linker = {};
+        $Subclass.Linker = { ConstructorPrefix: '_ctor_', TypePrefix: '_type_', LinkSymbol: '_^_', SurrogateConstructorPostFix: 'SurrogateConstructor' };
 
-        Export($subclass, window, 'Subclass');
+        Export($Subclass, window, 'Subclass');
 
-        Security.addSafeScope(Class, 3, $subclass);
+        Security.addSafeScope(CLRClass, 3, $Subclass);
 
         window.addEventListener('unload', function () {
             //For each type in the linker
-            for (var t in $subclass.linker) {
-                //If there is a type in the linker with the name t
-                if ($subclass.linker.hasOwnProperty(t)) {
-                    //If the t is a constructor
-                    if (!$subclass.linker[t] instanceof Function || typeof $subclass.linker[t] === 'function') {
-                        //Buffer
-                        var z = $subclass.linker[t];
-                        //Enumerate constructor (looking for nested exports)
-                        for (var T in z) if (z.hasOwnProperty(T)) {
-                            $Export.remove($subclass.linker[T]); //Remove the exports to the constructor
-                            delete $subclass.linker[T] // Remove the constructor
-                            $Export.remove(z[T]); //Remove any exports of the constructor link reference
-                            delete z[T]; //Remove the constructor link reference
+            for (var t in $Subclass.Linker) {
+                var _t = Array.from(t.split($Subclass.Linker.LinkSymbol));
+                t.forEach(function (name, index) {
+                    //If there is a type in the linker with the name t
+                    if ($Subclass.Linker.hasOwnProperty(t)) {
+                        //If the t is a constructor
+                        if (!$Subclass.Linker[t] instanceof Function || typeof $Subclass.Linker[t] === 'function') {
+                            //Buffer
+                            var z = $Subclass.Linker[t];
+                            //Enumerate constructor (looking for nested exports)
+                            for (var T in z) if (z.hasOwnProperty(T)) {
+                                $Export.remove($Subclass.Linker[T]); //Remove the exports to the constructor
+                                delete $Subclass.Linker[T] // Remove the constructor
+                                $Export.remove(z[T]); //Remove any exports of the constructor link reference
+                                delete z[T]; //Remove the constructor link reference
+                            }
+                            //Remove the exports
+                            $Export.remove(z);
+                            //Delete the link
+                            delete z;
                         }
                         //Remove the exports
-                        $Export.remove(z);
+                        $Export.remove($Subclass.Linker[t]);
                         //Delete the link
-                        delete z;
+                        delete $Subclass.Linker[t];
                     }
-                    //Remove the exports
-                    $Export.remove($subclass.linker[t]);
-                    //Delete the link
-                    delete $subclass.linker[t];
-                }
+                });
             }
-            delete $subclass.linker;
-            $subclass = null;
+            delete $Subclass.Linker;
+            $Subclass = null;
 
             //Should remove class memory also
-            Class = null;
+            CLRClass = null;
         });
 
-        //The default constructor of the soon to be pseudo Class / Type system
+        //The default constructor of the CLRClass
         //The reason this is here is because constructors must return void this we cannot return the apply call to the top of the stack with the defaultConstructor
         function applyInstance(constructor, derivedConstructor) {
             try { $checkSealed(constructor, derivedConstructor); return constructor.apply(derivedConstructor); }
             catch (_) { return new constructor(); }
+            return new Void(); //
         }
 
-        //The default constructor of the soon to be pseudo Class / Type system
+        //The default constructor of the CLRClass
         function defaultConstructor(instance) {
             instance = instance || this;
             try { applyInstance(instance, instance.$base || Object); }
-            catch (_) { throw abstractConstructor(instance); }
+            catch (_) { throw $abstractConstructor(instance); }
         }
 
         //        //Make the concept of abstract
@@ -1178,30 +978,29 @@
 
         //Pseudo Classes
         var baseClass = defaultConstructor; //(this);
-        baseClass.$base = baseClass.constructor = abstractConstructor;
+        baseClass.$base = baseClass.constructor = $abstractConstructor;
         baseClass.$abstract = true;
-        baseClass.toString = function () { return /*'[object Class */'baseClass'/*]'*/; };
+        baseClass.toString = function () { return /*'[object CLRClass */'baseClass'/*]'*/; };
 
         //Export Defined Classes for Unit Tests and make pseudo keyword 'abstract'
         Export(baseClass, window, '$abstract');
         Export(baseClass, window);
 
 
-        //If the base class is abstract return the reference to it otherwise return the reference to the result of $subclass given this instance and the baseClass
-        function Class(base) {
-            Object.defineProperty(this, '__TypeName', { value: base.__TypeName }); // Ensure the __TypeName is present
-            Object.defineProperty(this, 'base', { value: base }); // Ensure the base keyword works in the scope
-            $subclass(this, base, $isNewObject(this)); // $subclass all classes            
-            return base.$abstract && typeof (base = base.apply(this)) !== 'undefined' ? base : $subclass(this, base); // Return the base constructor
+        //If the base class is abstract return the reference to it otherwise return the reference to the result of $Subclass given this instance and the baseClass
+        function CLRClass(argumentz) {
+            var base = this.base || this.constructor || this.prototype;
+            Object.defineProperty(this, '__TypeName', { value: base.__TypeName }); // Ensure the __TypeName is present                        
+            return base.apply && typeof (base = base.apply(this, argumentz)) !== 'undefined' ? base : base = $Subclass(this, base); // Return the base constructor
         }
-        Class.toString = function () { return /*'[object */'Class'/*]'*/; };
-        Class.cast = Function.prototype.cast;
+        CLRClass.toString = function () { return /*'[object */'CLRClass'/*]'*/; };
+        CLRClass.cast = Function.prototype.cast;
 
         //Export Class keyword to the window
-        Export(Class, window);
+        Export(CLRClass, window);
 
-        Security.addSafeScope(Class, 1, Function.prototype.apply);
-        Security.addSafeScope(Class, 4, $cast);
+        Security.addSafeScope(CLRClass, 1, Function.prototype.apply);
+        Security.addSafeScope(CLRClass, 4, $cast);
 
         function $default(type) { var result = null; try { result = new type(); } catch (_) { result = arguments[0] || null; } return result ? result.valueOf() : result; }
         $Export($default, window, 'Default');
@@ -1237,13 +1036,15 @@
 
         //The CLRObject which will be the base class of all classes going forward... It will be exported under System.Object
         function CLRObject() {
-            Class.apply(this, arguments);
+            CLRClass.apply(this, arguments);
             this.toString = function () { return this.__TypeName; }
+            this.GetTypeName = function () { return CLRObject.toString(); }
+            this.ToString = CLRObject.toString;
         }
 
-        CLRObject.toString = function () { return /*'[object Class */'CLRObject'/*]'*/; }
+        CLRObject.toString = function () { return /*'[object CLRClass */'CLRObject'/*]'*/; }
 
-        CLRObject = Subclass(Class, CLRObject);
+        CLRObject = Subclass(CLRClass, CLRObject);
 
         Export(CLRObject, window, 'CLRObject');
 
@@ -1298,7 +1099,7 @@
         System.Char.toString = function () { return 'System.Char'; }
 
 
-        Subclass(Class, System.Char);
+        Subclass(CLRClass, System.Char);
 
         //TODO Implement GetTypeName from CLRObject
 
@@ -1358,7 +1159,7 @@
             Object.freeze(this);
         }
 
-        Subclass(Class, System.String);
+        Subclass(CLRClass, System.String);
 
         Subclass(String, System.String);
 
@@ -1411,7 +1212,7 @@
         function myClass() {
 
             //Privates
-            var base = Class(baseClass),
+            var base = CLRClass(baseClass),
                 intValue = Number(0),
                 stringValue = String('');
 
@@ -1434,10 +1235,10 @@
         Export(myClass, window);
 
         //Derived class from myClass
-        function anotherClass() {
+        function anotherClass(instance) {
 
             //Store the base reference
-            var base = new myClass();
+            var base = (instance && Is(instance, myClass) ? instance : new myClass());
             //If you would like the inherited base members to be public then utilize the latter
             //var base = myClass; base.apply(this);
 
@@ -1470,13 +1271,13 @@
         //Probably not needed
         var $Function$prototype$call = Function.prototype.call;
 
-        //New call function intercept, should never call the abstractConstructor unless from a derived class and this ensures it
+        //New call function intercept, should never call the $abstractConstructor unless from a derived class and this ensures it
         Function.prototype.call = function () {
             if (IsCLR()) {
                 //Should ConvertLegacyArguments before call and save them seprately. After which it should check for any parameters with IsIn
                 //After calling it should then check for any parameters with IsOut and ensure value was set in function. 
             }
-            return this.$abstract ? abstractConstructor(this.base || this.constructor || this.prototype || this) : $Function$prototype$call.apply(this, arguments)
+            return this.$abstract ? $abstractConstructor(this.base || this.constructor || this.prototype || this) : $Function$prototype$call.apply(this, arguments)
         };
 
         //Calls the function with named arguments if given using call intercept
@@ -1706,6 +1507,1320 @@
 
         Object.freeze(Reflection);
 
+        //MooTool 1.4.5                       
+
+        // Function overloading
+
+        var enumerables = true;
+        for (var i in { toString: 1 }) enumerables = null;
+        if (enumerables) enumerables = ['hasOwnProperty', 'valueOf', 'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString', 'toString', 'constructor'];
+
+        /*
+        Could add call semantic for allowing objects to be first class parameters?
+        E.g.
+        function whatEv(){}
+        whatEv{
+        something:true,
+        somethingElse: false
+        }
+        */
+
+        //To accept object
+        Function.prototype.overloadSetter = function Function$prototype$overloadSetter(usePlural) {
+            var self = this;
+            return function (a, b) {
+                if (a == null) return this;
+                if (usePlural || typeof a != 'string') {
+                    for (var k in a) self.call(this, k, a[k]);
+                    if (enumerables) for (var i = enumerables.length; i--; ) {
+                        k = enumerables[i];
+                        if (a.hasOwnProperty(k)) self.call(this, k, a[k]);
+                    }
+                } else {
+                    self.call(this, a, b);
+                }
+                return this;
+            };
+        };
+
+        //To return object
+        Function.prototype.overloadGetter = function Function$prototype$overloadGetter(usePlural) {
+            var self = this;
+            return function (a) {
+                var args, result;
+                if (typeof a != 'string') args = a;
+                else if (arguments.length > 1) args = arguments;
+                else if (usePlural) args = [a];
+                if (args) {
+                    result = {};
+                    for (var i = 0; i < args.length; i++) result[args[i]] = self.call(this, args[i]);
+                } else {
+                    result = self.call(this, a);
+                }
+                return result;
+            };
+        };
+
+        /*
+        Adds to the memberData
+        Modfied To:
+        Not overwrite unless explicitly told to,
+        Have a before, and after calls
+        */
+        Function.prototype.extend = function (key, value, overriteExisting, callExisting, beforeCall, afterCall) {
+            var overriteExisting = arguments[2] || callExisting,
+                    impliment = arguments.caller === Function.prototype.impliment;
+            if (arguments.length && arguments.length > 2 && overriteExisting || callExisting || beforeCall || afterCall) {
+                if (this[key] && !overriteExisting) return;
+                var _versions = (this[key].versions = Array.from(this[key].versions)), //Store current version of function
+                        thisCall = (versions[version.push(this[key])]), //Push and scope the existing call
+                        newKey = (function (_) { Array.forEach(function (__, ___) { __(); }); value(); }).pass([
+                            beforeCall, //beforeCall
+                            _thisCall, //_thisCall
+                            afterCall //afterCall
+                            ], this); //Bound as this 
+                if (impliment) this.prototype[key] = newKey;
+                else this[key] = newKey;
+            } else this[key] = value;
+        } .overloadSetter();
+
+        //Adds to the prototype
+        Function.prototype.implement = function (key, value, overriteExisting, callExisting, beforeCall, afterCall) { this.extend(key, value, overriteExisting, callExisting, beforeCall, afterCall); } .overloadSetter();
+
+        // typeOf, instanceOf
+
+        $Export(this.typeOf = function typeOf(item) {
+            if (item == null) return 'null';
+            if (item.$family != null) return item.$family();
+
+            if (item.nodeName) {
+                if (item.nodeType == 1) return 'element';
+                if (item.nodeType == 3) return (/\S/).test(item.nodeValue) ? 'textnode' : 'whitespace';
+            } else if (typeof item.length == 'number') {
+                if (item.callee) return 'arguments';
+                if ('item' in item) return 'collection';
+            }
+
+            //return typeof item;
+            //Use CLR
+            return GetTypeName(item);
+        }, window, 'typeOf');
+
+        $Export(this.instanceOf = function instanceOf(item, object) {
+            if (item == null) return false;
+            var constructor = item.$constructor || item.constructor;
+            while (constructor) {
+                if (constructor === object) return true;
+                constructor = constructor.parent;
+            }
+            /*<ltIE8>*/
+            if (!item.hasOwnProperty) return false;
+            /*</ltIE8>*/
+            return item instanceof object;
+        }, window, 'instanceOf');
+
+        // From
+
+        var slice = Array.prototype.slice;
+
+        Function.from = function (item) {
+            return (typeOf(item) == 'function') ? item : function () {
+                return item;
+            };
+        };
+
+        Array.from = function (item) {
+            if (item == null) return [];
+            return (Type.isEnumerable(item) && typeof item != 'string') ? (typeOf(item) == 'array') ? item : slice.call(item) : [item];
+        };
+
+        Number.from = function (item) {
+            var number = parseFloat(item);
+            return isFinite(number) ? number : null;
+        };
+
+        String.from = function (item) {
+            return item + '';
+        };
+
+        // hide, protect
+
+        Function.prototype.hide = function () {
+            this.$hidden = true;
+            return this;
+        };
+
+        Function.prototype.protect = function () {
+            this.$protected = true;
+            return this;
+        };
+
+        Function.implement({
+
+            attempt: function (args, bind) {
+                try {
+                    return this.apply(bind, Array.from(args));
+                } catch (e) { }
+
+                return null;
+            },
+
+            pass: function (args, bind) {
+                var self = this;
+                if (args != null) args = Array.from(args);
+                return function () {
+                    return self.apply(bind, args || arguments);
+                };
+            },
+
+            delay: function (delay, bind, args) {
+                return setTimeout(this.pass((args == null ? [] : args), bind), delay);
+            },
+
+            periodical: function (periodical, bind, args) {
+                return setInterval(this.pass((args == null ? [] : args), bind), periodical);
+            }
+
+        });
+
+        // Types
+
+        var Types = this.Types || extern.Types || {};
+
+        // Type
+
+        var Type = this.Type = function (name, object) {
+            if (name) {
+                var lower = name.toLowerCase();
+                var typeCheck = function (item) {
+                    return (typeOf(item) == lower);
+                };
+
+                Type['is' + name] = typeCheck;
+                if (object != null) {
+                    object.prototype.$family = (function () {
+                        return lower;
+                    }).hide();
+
+                }
+            }
+
+            if (object == null) return null;
+
+            object.extend(this);
+            object.$constructor = Type;
+            object.prototype.$constructor = object;
+
+            return object;
+        };
+
+        var toString = Object.prototype.toString;
+
+        Type.isEnumerable = function (item) {
+            return (item != null && typeof item.length == 'number' && toString.call(item) != '[object Function]');
+        };
+
+        var hooks = {};
+
+        var hooksOf = function (object) {
+            var type = typeOf(object.prototype);
+            return hooks[type] || (hooks[type] = []);
+        };
+
+        var implement = function (name, method) {
+            if (method && method.$hidden) return;
+
+            var hooks = hooksOf(this);
+
+            for (var i = 0; i < hooks.length; i++) {
+                var hook = hooks[i];
+                if (typeOf(hook) == 'type') implement.call(hook, name, method);
+                else hook.call(this, name, method);
+            }
+
+            var previous = this.prototype[name];
+            if (previous == null || !previous.$protected) this.prototype[name] = method;
+
+            if (this[name] == null && typeOf(method) == 'function') extend.call(this, name, function (item) {
+                return method.apply(item, slice.call(arguments, 1));
+            });
+        };
+
+        var extend = function (name, method) {
+            if (method && method.$hidden) return;
+            var previous = this[name];
+            if (previous == null || !previous.$protected) this[name] = method;
+        };
+
+        // Default Types
+
+        var force = function (name, object, methods) {
+            var isType = (object != Object), prototype = object.prototype;
+
+            if (isType) object = new Type(name, object);
+
+            for (var i = 0, l = methods.length; i < l; i++) {
+                var key = methods[i],
+			        generic = object[key],
+			        proto = prototype[key];
+
+                if (generic) generic.protect();
+                if (isType && proto) object.implement(key, proto.protect());
+            }
+
+            if (isType) {
+                var methodsEnumerable = prototype.propertyIsEnumerable(methods[0]);
+                object.forEachMethod = function (fn) {
+                    if (!methodsEnumerable) for (var i = 0, l = methods.length; i < l; i++) {
+                        fn.call(prototype, prototype[methods[i]], methods[i]);
+                    }
+                    for (var key in prototype) fn.call(prototype, prototype[key], key)
+                };
+            }
+
+            return force;
+        };
+
+        force('String', String, [
+	        'charAt', 'charCodeAt', 'concat', 'indexOf', 'lastIndexOf', 'match', 'quote', 'replace', 'search',
+	        'slice', 'split', 'substr', 'substring', 'trim', 'toLowerCase', 'toUpperCase'
+        ])('Array', Array, [
+	        'pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift', 'concat', 'join', 'slice',
+	        'indexOf', 'lastIndexOf', 'filter', 'forEach', 'every', 'map', 'some', 'reduce', 'reduceRight'
+        ])('Number', Number, [
+	        'toExponential', 'toFixed', 'toLocaleString', 'toPrecision'
+        ])('Function', Function, [
+	        'apply', 'call', 'bind'
+        ])('RegExp', RegExp, [
+	        'exec', 'test'
+        ])('Object', Object, [
+	        'create', 'defineProperty', 'defineProperties', 'keys',
+	        'getPrototypeOf', 'getOwnPropertyDescriptor', 'getOwnPropertyNames',
+	        'preventExtensions', 'isExtensible', 'seal', 'isSealed', 'freeze', 'isFrozen'
+        ])('Date', Date, ['now']);
+
+        Object.extend = extend.overloadSetter();
+
+        Type.prototype.alias = function (name, existing) {
+            implement.call(this, name, this.prototype[existing]);
+        } .overloadSetter();
+
+        Type.prototype.extend = extend.overloadSetter();
+        Type.prototype.implement = implement.overloadSetter();
+        Type.prototype.mirror = function (hook) {
+            hooksOf(this).push(hook);
+            return this;
+        }
+
+        Type.toString = function () { return 'Type'; }
+
+        $Export(new Type('Type', Type), window, 'Type');
+
+        Date.extend('now', function () {
+            return +(new Date);
+        });
+
+        new Type('Boolean', Boolean);
+
+
+        new Type('Number', Number);
+
+        // fixes NaN returning as Number
+
+        Number.prototype.$family = function () {
+            return isFinite(this) ? 'number' : 'null';
+        } .hide();
+
+        // Number.random
+
+        Number.extend('random', function (min, max) {
+            return Math.floor(Math.random() * (max - min + 1) + min);
+        });
+
+        // forEach, each
+
+        var hasOwnProperty = Object.prototype.hasOwnProperty;
+        Object.extend('forEach', function (object, fn, bind) {
+            for (var key in object) {
+                if (hasOwnProperty.call(object, key)) fn.call(bind, object[key], key, object);
+            }
+        });
+
+        Object.each = Object.forEach;
+
+        Array.implement({
+
+            forEach: function (fn, bind) {
+                for (var i = 0, l = this.length; i < l; i++) {
+                    if (i in this) fn.call(bind, this[i], i, this);
+                }
+            },
+
+            each: function (fn, bind) {
+                Array.forEach(this, fn, bind);
+                return this;
+            }
+
+        });
+
+        // Array & Object cloning, Object merging and appending
+
+        var cloneOf = function (item) {
+            switch (typeOf(item)) {
+                case 'array': return item.clone();
+                case 'object': return Object.clone(item);
+                default: return item;
+            }
+        };
+
+        Array.implement('clone', function () {
+            var i = this.length, clone = new Array(i);
+            while (i--) clone[i] = cloneOf(this[i]);
+            return clone;
+        });
+
+        var mergeOne = function (source, key, current) {
+            switch (typeOf(current)) {
+                case 'object':
+                    if (typeOf(source[key]) == 'object') Object.merge(source[key], current);
+                    else source[key] = Object.clone(current);
+                    break;
+                case 'array': source[key] = current.clone(); break;
+                default: source[key] = current;
+            }
+            return source;
+        };
+
+        Object.extend({
+
+            merge: function (source, k, v) {
+                if (typeOf(k) == 'string') return mergeOne(source, k, v);
+                for (var i = 1, l = arguments.length; i < l; i++) {
+                    var object = arguments[i];
+                    for (var key in object) mergeOne(source, key, object[key]);
+                }
+                return source;
+            },
+
+            clone: function (object) {
+                var clone = {};
+                for (var key in object) clone[key] = cloneOf(object[key]);
+                return clone;
+            },
+
+            append: function (original) {
+                for (var i = 1, l = arguments.length; i < l; i++) {
+                    var extended = arguments[i] || {};
+                    for (var key in extended) original[key] = extended[key];
+                }
+                return original;
+            }
+
+        });
+
+        // Object-less types
+        ['Object', 'WhiteSpace', 'TextNode', 'Collection', 'Arguments'].forEach(function (name) {
+            new Type(name);
+        });
+
+        // Unique ID
+
+        var UID = Date.now();
+
+        String.extend('uniqueID', function () {
+            return (UID++).toString(36);
+        });
+
+        /*
+        ---
+
+        name: Array
+
+        description: Contains Array Prototypes like each, contains, and erase.
+
+        license: MIT-style license.
+
+        requires: Type
+
+        provides: Array
+
+        ...
+        */
+
+        Array.implement({
+
+            /*<!ES5>*/
+            every: function (fn, bind) {
+                for (var i = 0, l = this.length >>> 0; i < l; i++) {
+                    if ((i in this) && !fn.call(bind, this[i], i, this)) return false;
+                }
+                return true;
+            },
+
+            filter: function (fn, bind) {
+                var results = [];
+                for (var value, i = 0, l = this.length >>> 0; i < l; i++) if (i in this) {
+                    value = this[i];
+                    if (fn.call(bind, value, i, this)) results.push(value);
+                }
+                return results;
+            },
+
+            indexOf: function (item, from) {
+                var length = this.length >>> 0;
+                for (var i = (from < 0) ? Math.max(0, length + from) : from || 0; i < length; i++) {
+                    if (this[i] === item) return i;
+                }
+                return -1;
+            },
+
+            map: function (fn, bind) {
+                var length = this.length >>> 0, results = Array(length);
+                for (var i = 0; i < length; i++) {
+                    if (i in this) results[i] = fn.call(bind, this[i], i, this);
+                }
+                return results;
+            },
+
+            some: function (fn, bind) {
+                for (var i = 0, l = this.length >>> 0; i < l; i++) {
+                    if ((i in this) && fn.call(bind, this[i], i, this)) return true;
+                }
+                return false;
+            },
+            /*</!ES5>*/
+
+            clean: function () {
+                return this.filter(function (item) {
+                    return item != null;
+                });
+            },
+
+            invoke: function (methodName) {
+                var args = Array.slice(arguments, 1);
+                return this.map(function (item) {
+                    return item[methodName].apply(item, args);
+                });
+            },
+
+            associate: function (keys) {
+                var obj = {}, length = Math.min(this.length, keys.length);
+                for (var i = 0; i < length; i++) obj[keys[i]] = this[i];
+                return obj;
+            },
+
+            link: function (object) {
+                var result = {};
+                for (var i = 0, l = this.length; i < l; i++) {
+                    for (var key in object) {
+                        if (object[key](this[i])) {
+                            result[key] = this[i];
+                            delete object[key];
+                            break;
+                        }
+                    }
+                }
+                return result;
+            },
+
+            contains: function (item, from) {
+                return this.indexOf(item, from) != -1;
+            },
+
+            append: function (array) {
+                this.push.apply(this, array);
+                return this;
+            },
+
+            getLast: function () {
+                return (this.length) ? this[this.length - 1] : null;
+            },
+
+            getRandom: function () {
+                return (this.length) ? this[Number.random(0, this.length - 1)] : null;
+            },
+
+            include: function (item) {
+                if (!this.contains(item)) this.push(item);
+                return this;
+            },
+
+            combine: function (array) {
+                for (var i = 0, l = array.length; i < l; i++) this.include(array[i]);
+                return this;
+            },
+
+            erase: function (item) {
+                for (var i = this.length; i--; ) {
+                    if (this[i] === item) this.splice(i, 1);
+                }
+                return this;
+            },
+
+            empty: function () {
+                this.length = 0;
+                return this;
+            },
+
+            flatten: function () {
+                var array = [];
+                for (var i = 0, l = this.length; i < l; i++) {
+                    var type = typeOf(this[i]);
+                    if (type == 'null') continue;
+                    array = array.concat((type == 'array' || type == 'collection' || type == 'arguments' || instanceOf(this[i], Array)) ? Array.flatten(this[i]) : this[i]);
+                }
+                return array;
+            },
+
+            pick: function () {
+                for (var i = 0, l = this.length; i < l; i++) {
+                    if (this[i] != null) return this[i];
+                }
+                return null;
+            },
+
+            hexToRgb: function (array) {
+                if (this.length != 3) return null;
+                var rgb = this.map(function (value) {
+                    if (value.length == 1) value += value;
+                    return value.toInt(16);
+                });
+                return (array) ? rgb : 'rgb(' + rgb + ')';
+            },
+
+            rgbToHex: function (array) {
+                if (this.length < 3) return null;
+                if (this.length == 4 && this[3] == 0 && !array) return 'transparent';
+                var hex = [];
+                for (var i = 0; i < 3; i++) {
+                    var bit = (this[i] - 0).toString(16);
+                    hex.push((bit.length == 1) ? '0' + bit : bit);
+                }
+                return (array) ? hex : '#' + hex.join('');
+            }
+
+        });
+
+        //Polyfills
+        /*<ltIE9>*/
+
+        /*@cc_on
+        document.write("JScript version: " + @_jscript_version + ".<br>");
+        /*@if (@_jscript_version >= 5)
+        document.write("JScript Version 5.0 or better.<br \/>");
+        document.write("This text is only seen by browsers that support JScript 5+<br>");
+        @else @*/
+        document.write("This text is seen by all other browsers (ie: Firefox, IE 4.x etc)<br>");
+        /*@end
+        @*/
+
+        //Attach the unload Event
+        if (this.attachEvent && !this.addEventListener) {
+            var unloadEvent = function () {
+                this.detachEvent('onunload', unloadEvent);
+                document.head = document.html = document.window = null;
+            };
+            this.attachEvent('onunload', unloadEvent);
+        }
+
+        // IE fails on collections and <select>.options (refers to <select>)
+        var arrayFrom = Array.from;
+        try { arrayFrom(document.html.childNodes); }
+        catch (_) {
+            Array.from = function (item) {
+                if (typeof item != 'string' && Type.isEnumerable(item) && typeOf(item) != 'array') {
+                    var i = item.length, array = new Array(i);
+                    while (i--) array[i] = item[i];
+                    return array;
+                }
+                return arrayFrom(item);
+            };
+
+            var prototype = Array.prototype, slice = prototype.slice;
+
+            ['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift', 'concat', 'join', 'slice'].forEach(function (name) {
+                var method = prototype[name];
+                Array[name] = function (item) {
+                    return method.apply(Array.from(item), slice.call(arguments, 1));
+                };
+            });
+        }
+
+
+        if ((navigator.appVersion.indexOf('7.') !== -1 || navigator.appVersion.indexOf('8.') !== -1 && navigator.appVersion.indexOf('MSIE') !== -1)) {
+            //Backup prototype
+            var Object$prototyoe = Object.prototype;
+            //Set the prototype to the Element Constructor
+            Object.prototype = document.createElement;
+            //Backup defineProperty cause IE8 has it but only is valid for Elements.
+            var Object$defineProperty = Object.defineProperty;
+            //Undefine defineProperty
+            Object.defineProperty = undefined;
+        }
+
+        //Polyfill for freeze
+        if (!Object.freeze) {
+
+            //Memory for frozen objects
+            var $freezer = {}
+
+            //Puts the ice on
+            function ice(object) { $freezer[object] = true; }
+
+            //Takes the ice off
+            function thaw(object) { delete $freezer[object]; }
+
+            //Freeze the object
+            function freeze(object) { return ice(object); }
+
+            function isFrozen(object) { return $freezer[object] === true; }
+
+            //Export
+            Object.freeze = freeze;
+            Object.isFrozen = isFrozen;
+        }
+
+        //Polyfill for seal
+        if (!Object.seal) {
+
+            //Memory for sealed objects
+            var $sealed = {};
+
+            function seal(object) { $sealed[object] = true; }
+
+            function isSealed(object) { return $sealed[object] ? true : false; }
+
+            //Export
+            Object.seal = seal;
+            Object.isSealed = isSealed;
+        }
+
+        //Polyfill for defineProperty
+        if (IsNullOrUndefined(Object.defineProperty)) {
+            var descriptorHash = {};
+
+            function legacyGet(object, property, descriptor) {
+                return descriptor.value ?
+                    descriptor.value.valueOf() :
+                        descriptor.get ?
+                            descriptor.get.bind(object)() : object[property];
+            }
+
+            $Export(legacyGet, window, 'legacyGet');
+
+            function legacySet(object, property, descriptor, value) {
+                if (!descriptor.writeable || (descriptor.enforceType && !(value instanceof descriptor.value))) return;
+                object[property] = value;
+            }
+
+            $Export(legacyGet, window, 'legacySet')
+
+            function legacyIterate(object) {
+                ///TODO
+                for (var m in object) {
+                    //Kinda Need LINQ Yield here
+                }
+            }
+
+            function setDescriptor(object, property, newDescriptor) {
+                if (!object || !property) return;
+                var existing = descriptorHash[object][property];
+                if (existing && !existing.configurable) throw 'Cannot modify the existing descriptor for the non-configurable property: "' + property + '"';
+                defineProperty(object, name, newDescriptor || {
+                    enumerable: newDescriptor.enumerable || false,
+                    writeable: newDescriptor.writeable || false,
+                    configurable: descriptor.configurable || false,
+                    value: newDescriptor.value || null,
+                    enforceType: descriptor.enforceType || false,
+                    get: newDescriptor.get || undefined,
+                    set: newDescriptor.set || undefined
+                });
+                //Store last version
+                descriptorHash[object][property]._previous = existing;
+            }
+
+            $Export(setDescriptor, window, 'setDescriptor');
+
+
+            //Adds a property to an object with getter, setter and descriptor support
+            function defineProperty(object, name, descriptor) {
+                if (!object || !name) return;
+                if (!IsNullOrUndefined(descriptor.value) && !IsNullOrUndefined(descriptor.get)) throw 'Descriptor cannot contain a value and a getter';
+                descriptor = {
+                    enumerable: descriptor.enumerable || false,
+                    writeable: descriptor.writeable || false,
+                    configurable: descriptor.configurable || false,
+                    value: descriptor.value || null,
+                    enforceType: descriptor.enforceType || false,
+                    get: descriptor.get ? descriptor.get : function () { return legacyGet(object, name, descriptor); } .bind(object),
+                    set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(object, name, descriptor, value); } .bind(object) : function () { }
+                };
+
+                //Create getter / setter - might need to do a call scan to determine if this is an assignment
+                var getterSetter = function (value) { return (IsNullOrUndefined(value) || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
+
+                //Create value proxy object
+                var valueProxy = {
+                    valueOf: function () { return getterSetter(arguments); },
+                    toString: function () { return this.valueOf().toString(); }
+                }
+
+                //Store on object if enumerable
+                if (descriptor.enumerable) object[name] = valueProxy;
+
+                //Store in descriptor hash
+                descriptorHash[object] = {};
+                descriptorHash[object][name] = descriptor;
+            }
+
+            //Augment Object
+            Object.defineProperty = defineProperty;
+        }
+
+
+
+        /*
+        ---
+
+        name: String
+
+        description: Contains String Prototypes like camelCase, capitalize, test, and toInt.
+
+        license: MIT-style license.
+
+        requires: Type
+
+        provides: String
+
+        ...
+        */
+
+        String.implement({
+
+            test: function (regex, params) {
+                return ((typeOf(regex) == 'regexp') ? regex : new RegExp('' + regex, params)).test(this);
+            },
+
+            contains: function (string, separator) {
+                return (separator) ? (separator + this + separator).indexOf(separator + string + separator) > -1 : String(this).indexOf(string) > -1;
+            },
+
+            trim: function () {
+                return String(this).replace(/^\s+|\s+$/g, '');
+            },
+
+            clean: function () {
+                return String(this).replace(/\s+/g, ' ').trim();
+            },
+
+            camelCase: function () {
+                return String(this).replace(/-\D/g, function (match) {
+                    return match.charAt(1).toUpperCase();
+                });
+            },
+
+            hyphenate: function () {
+                return String(this).replace(/[A-Z]/g, function (match) {
+                    return ('-' + match.charAt(0).toLowerCase());
+                });
+            },
+
+            capitalize: function () {
+                return String(this).replace(/\b[a-z]/g, function (match) {
+                    return match.toUpperCase();
+                });
+            },
+
+            escapeRegExp: function () {
+                return String(this).replace(/([-.*+?^${}()|[\]\/\\])/g, '\\$1');
+            },
+
+            toInt: function (base) {
+                return parseInt(this, base || 10);
+            },
+
+            toFloat: function () {
+                return parseFloat(this);
+            },
+
+            hexToRgb: function (array) {
+                var hex = String(this).match(/^#?(\w{1,2})(\w{1,2})(\w{1,2})$/);
+                return (hex) ? hex.slice(1).hexToRgb(array) : null;
+            },
+
+            rgbToHex: function (array) {
+                var rgb = String(this).match(/\d{1,3}/g);
+                return (rgb) ? rgb.rgbToHex(array) : null;
+            },
+
+            substitute: function (object, regexp) {
+                return String(this).replace(regexp || (/\\?\{([^{}]+)\}/g), function (match, name) {
+                    if (match.charAt(0) == '\\') return match.slice(1);
+                    return (object[name] != null) ? object[name] : '';
+                });
+            }
+
+        });
+
+
+
+
+        /*
+        ---
+
+        name: Number
+
+        description: Contains Number Prototypes like limit, round, times, and ceil.
+
+        license: MIT-style license.
+
+        requires: Type
+
+        provides: Number
+
+        ...
+        */
+
+        Number.implement({
+
+            limit: function (min, max) {
+                return Math.min(max, Math.max(min, this));
+            },
+
+            round: function (precision) {
+                precision = Math.pow(10, precision || 0).toFixed(precision < 0 ? -precision : 0);
+                return Math.round(this * precision) / precision;
+            },
+
+            times: function (fn, bind) {
+                for (var i = 0; i < this; i++) fn.call(bind, i, this);
+            },
+
+            toFloat: function () {
+                return parseFloat(this);
+            },
+
+            toInt: function (base) {
+                return parseInt(this, base || 10);
+            }
+
+        });
+
+        Number.alias('each', 'times');
+
+        (function (math) {
+            var methods = {};
+            math.forEach(function (name) {
+                if (!Number[name]) methods[name] = function () {
+                    return Math[name].apply(null, [this].concat(Array.from(arguments)));
+                };
+            });
+            Number.implement(methods);
+        })(['abs', 'acos', 'asin', 'atan', 'atan2', 'ceil', 'cos', 'exp', 'floor', 'log', 'max', 'min', 'pow', 'sin', 'sqrt', 'tan']);
+
+
+        /*
+        ---
+
+        name: Object
+
+        description: Object generic methods
+
+        license: MIT-style license.
+
+        requires: Type
+
+        provides: [Object, Hash]
+
+        ...
+        */
+
+        (function () {
+
+            var hasOwnProperty = Object.prototype.hasOwnProperty;
+
+            Object.extend({
+
+                subset: function (object, keys) {
+                    var results = {};
+                    for (var i = 0, l = keys.length; i < l; i++) {
+                        var k = keys[i];
+                        if (k in object) results[k] = object[k];
+                    }
+                    return results;
+                },
+
+                map: function (object, fn, bind) {
+                    var results = {};
+                    for (var key in object) {
+                        if (hasOwnProperty.call(object, key)) results[key] = fn.call(bind, object[key], key, object);
+                    }
+                    return results;
+                },
+
+                filter: function (object, fn, bind) {
+                    var results = {};
+                    for (var key in object) {
+                        var value = object[key];
+                        if (hasOwnProperty.call(object, key) && fn.call(bind, value, key, object)) results[key] = value;
+                    }
+                    return results;
+                },
+
+                every: function (object, fn, bind) {
+                    for (var key in object) {
+                        if (hasOwnProperty.call(object, key) && !fn.call(bind, object[key], key)) return false;
+                    }
+                    return true;
+                },
+
+                some: function (object, fn, bind) {
+                    for (var key in object) {
+                        if (hasOwnProperty.call(object, key) && fn.call(bind, object[key], key)) return true;
+                    }
+                    return false;
+                },
+
+                keys: function (object) {
+                    var keys = [];
+                    for (var key in object) {
+                        if (hasOwnProperty.call(object, key)) keys.push(key);
+                    }
+                    return keys;
+                },
+
+                values: function (object) {
+                    var values = [];
+                    for (var key in object) {
+                        if (hasOwnProperty.call(object, key)) values.push(object[key]);
+                    }
+                    return values;
+                },
+
+                getLength: function (object) {
+                    return Object.keys(object).length;
+                },
+
+                keyOf: function (object, value) {
+                    for (var key in object) {
+                        if (hasOwnProperty.call(object, key) && object[key] === value) return key;
+                    }
+                    return null;
+                },
+
+                contains: function (object, value) {
+                    return Object.keyOf(object, value) != null;
+                },
+
+                toQueryString: function (object, base) {
+                    var queryString = [];
+
+                    Object.each(object, function (value, key) {
+                        if (base) key = base + '[' + key + ']';
+                        var result;
+                        switch (typeOf(value)) {
+                            case 'object': result = Object.toQueryString(value, key); break;
+                            case 'array':
+                                var qs = {};
+                                value.each(function (val, i) {
+                                    qs[i] = val;
+                                });
+                                result = Object.toQueryString(qs, key);
+                                break;
+                            default: result = key + '=' + encodeURIComponent(value);
+                        }
+                        if (value != null) queryString.push(result);
+                    });
+
+                    return queryString.join('&');
+                }
+
+            });
+
+        })();
+
+        /*
+        ---
+
+        name: Browser
+
+        description: The Browser Object. Contains Browser initialization, Window and Document, and the Browser Hash.
+
+        license: MIT-style license.
+
+        requires: [Array, Function, Number, String]
+
+        provides: [Browser, Window, Document]
+
+        ...
+        */
+
+        (function () {
+
+            var document = this.document;
+            var window = document.window = this;
+
+            var ua = navigator.userAgent.toLowerCase(),
+	            platform = navigator.platform.toLowerCase(),
+	            UA = ua.match(/(opera|ie|firefox|chrome|version)[\s\/:]([\w\d\.]+)?.*?(safari|version[\s\/:]([\w\d\.]+)|$)/) || [null, 'unknown', 0],
+	            mode = UA[1] == 'ie' && document.documentMode;
+
+            var Browser = this.Browser = {
+
+                extend: Function.prototype.extend,
+
+                name: (UA[1] == 'version') ? UA[3] : UA[1],
+
+                version: mode || parseFloat((UA[1] == 'opera' && UA[4]) ? UA[4] : UA[2]),
+
+                Platform: {
+                    name: ua.match(/ip(?:ad|od|hone)/) ? 'ios' : (ua.match(/(?:webos|android)/) || platform.match(/mac|win|linux/) || ['other'])[0]
+                },
+
+                Features: {
+                    xpath: !!(document.evaluate),
+                    air: !!(window.runtime),
+                    query: !!(document.querySelector),
+                    json: !!(window.JSON)
+                },
+
+                Plugins: {}
+
+            };
+
+            Browser[Browser.name] = true;
+            Browser[Browser.name + parseInt(Browser.version, 10)] = true;
+            Browser.Platform[Browser.Platform.name] = true;
+
+            // Request
+
+            Browser.Request = (function () {
+
+                var XMLHTTP = function Browser$Request$XMLHTTP() { return new XMLHttpRequest(); }
+
+                var MSXML2 = function Browser$Request$MSXML2() { return new ActiveXObject('MSXML2.XMLHTTP'); }
+
+                var MSXML = function Browser$Request$MSXML() { return new ActiveXObject('Microsoft.XMLHTTP'); }
+
+                return Function.attempt(function () {
+                    XMLHTTP();
+                    return XMLHTTP;
+                }, function () {
+                    MSXML2();
+                    return MSXML2;
+                }, function () {
+                    MSXML();
+                    return MSXML;
+                });
+
+            })();
+
+            Browser.Features.xhr = !!(Browser.Request);
+
+            // Flash detection
+
+            var version = (Function.attempt(function () { return navigator.plugins['Shockwave Flash'].description; }, function () { return new ActiveXObject('ShockwaveFlash.ShockwaveFlash').GetVariable('$version'); }) || '0 r0').match(/\d+/g);
+
+            Browser.Plugins.Flash = {
+                version: Number(version[0] || '0.' + version[1]) || 0,
+                build: Number(version[2]) || 0
+            };
+
+            // String scripts
+
+            Browser.exec = function (text) {
+                if (!text) return text;
+                if (window.execScript) {
+                    window.execScript(text);
+                } else {
+                    var script = document.createElement('script');
+                    script.setAttribute('type', 'text/javascript');
+                    script.text = text;
+                    document.head.appendChild(script);
+                    document.head.removeChild(script);
+                }
+                return text;
+            };
+
+            String.implement('stripScripts', function (exec) {
+                var scripts = '';
+                var text = this.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, function (all, code) {
+                    scripts += code + '\n';
+                    return '';
+                });
+                if (exec === true) Browser.exec(scripts);
+                else if (typeOf(exec) == 'function') exec(scripts, text);
+                return text;
+            });
+
+
+            // Window, Document
+
+            Browser.extend({
+                Document: this.Document,
+                Window: this.Window,
+                Element: this.Element,
+                Event: this.Event
+            });
+
+            this.Window = this.$constructor = new Type('Window', function () { });
+
+            this.$family = Function.from('window').hide();
+
+            Window.mirror(function (name, method) {
+                window[name] = method;
+            });
+
+            this.Document = document.$constructor = new Type('Document', function () { });
+
+            document.$family = Function.from('document').hide();
+
+            Document.mirror(function (name, method) {
+                document[name] = method;
+            });
+
+            document.html = document.documentElement;
+            if (!document.head) document.head = document.getElementsByTagName('head')[0];
+
+            if (document.execCommand) try { document.execCommand("BackgroundImageCache", false, true); } catch (_) { }
+
+        })();
+
+        /*
+        ---
+
+        name: Event
+
+        description: Contains the Event Type, to make the event object cross-browser.
+
+        license: MIT-style license.
+
+        requires: [Window, Document, Array, Function, String, Object]
+
+        provides: Event
+
+        ...
+        */
+
+        (function () {
+
+            var _keys = {};
+
+            var DOMEvent = this.DOMEvent = new Type('DOMEvent', function (event, win) {
+                if (!win) win = window;
+                event = event || win.event;
+                if (event.$extended) return event;
+                this.event = event;
+                this.$extended = true;
+                this.shift = event.shiftKey;
+                this.control = event.ctrlKey;
+                this.alt = event.altKey;
+                this.meta = event.metaKey;
+                var type = this.type = event.type;
+                var target = event.target || event.srcElement;
+                while (target && target.nodeType == 3) target = target.parentNode;
+                this.target = document.id(target);
+
+                if (type.indexOf('key') == 0) {
+                    var code = this.code = (event.which || event.keyCode);
+                    this.key = _keys[code];
+                    if (type == 'keydown') {
+                        if (code > 111 && code < 124) this.key = 'f' + (code - 111);
+                        else if (code > 95 && code < 106) this.key = code - 96;
+                    }
+                    if (this.key == null) this.key = String.fromCharCode(code).toLowerCase();
+                } else if (type == 'click' || type == 'dblclick' || type == 'contextmenu' || type == 'DOMMouseScroll' || type.indexOf('mouse') == 0) {
+                    var doc = win.document;
+                    doc = (!doc.compatMode || doc.compatMode == 'CSS1Compat') ? doc.html : doc.body;
+                    this.page = {
+                        x: (event.pageX != null) ? event.pageX : event.clientX + doc.scrollLeft,
+                        y: (event.pageY != null) ? event.pageY : event.clientY + doc.scrollTop
+                    };
+                    this.client = {
+                        x: (event.pageX != null) ? event.pageX - win.pageXOffset : event.clientX,
+                        y: (event.pageY != null) ? event.pageY - win.pageYOffset : event.clientY
+                    };
+                    if (type == 'DOMMouseScroll' || type == 'mousewheel')
+                        this.wheel = (event.wheelDelta) ? event.wheelDelta / 120 : -(event.detail || 0) / 3;
+
+                    this.rightClick = (event.which == 3 || event.button == 2);
+                    if (type == 'mouseover' || type == 'mouseout') {
+                        var related = event.relatedTarget || event[(type == 'mouseover' ? 'from' : 'to') + 'Element'];
+                        while (related && related.nodeType == 3) related = related.parentNode;
+                        this.relatedTarget = document.id(related);
+                    }
+                } else if (type.indexOf('touch') == 0 || type.indexOf('gesture') == 0) {
+                    this.rotation = event.rotation;
+                    this.scale = event.scale;
+                    this.targetTouches = event.targetTouches;
+                    this.changedTouches = event.changedTouches;
+                    var touches = this.touches = event.touches;
+                    if (touches && touches[0]) {
+                        var touch = touches[0];
+                        this.page = { x: touch.pageX, y: touch.pageY };
+                        this.client = { x: touch.clientX, y: touch.clientY };
+                    }
+                }
+
+                if (!this.client) this.client = {};
+                if (!this.page) this.page = {};
+            });
+
+            DOMEvent.implement({
+
+                stop: function () {
+                    return this.preventDefault().stopPropagation();
+                },
+
+                stopPropagation: function () {
+                    if (this.event.stopPropagation) this.event.stopPropagation();
+                    else this.event.cancelBubble = true;
+                    return this;
+                },
+
+                preventDefault: function () {
+                    if (this.event.preventDefault) this.event.preventDefault();
+                    else this.event.returnValue = false;
+                    return this;
+                }
+
+            });
+
+            DOMEvent.defineKey = function (code, key) {
+                _keys[code] = key;
+                return this;
+            };
+
+            DOMEvent.defineKeys = DOMEvent.defineKey.overloadSetter(true);
+
+            DOMEvent.defineKeys({
+                '38': 'up', '40': 'down', '37': 'left', '39': 'right',
+                '27': 'esc', '32': 'space', '8': 'backspace', '9': 'tab',
+                '46': 'delete', '13': 'enter'
+            });
+
+        })();
+
+        //Scope the Function
+        var Function = this.Function = window$Function = window.Function;
+
+        //Backup the old apply function
+        var Function$prototype$apply = window$Function.prototype.apply;
+
+        //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
+        window$Function.prototype.apply = function Function$prototype$apply() {
+            $checkCLR();
+            try { return Function$prototype$apply(this, arguments); }
+            catch (_) { return Function$prototype$apply; }
+            return void (this);
+        }
+
+        //Object.prototype._constructor = Object.prototype.constructor;
+
+        //Replace object constructor
+        Object.prototype.constructor = function () { return this === extern ? new Class(Object) : Class({}); }
+
+        //Return the CLR
         return CLRItself;
 
     })();
