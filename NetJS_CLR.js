@@ -126,7 +126,7 @@
         }
 
         //Array like Getter/Setter Logic, creates a getter for the List to access the inner array at the given index
-        function $CreateGetterSetter(list, index) {
+        function $CreateGetterSetter$List(list, index) {
             try {
                 Object.defineProperty(list, index, {
                     //writable: true, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
@@ -601,7 +601,7 @@
             //The alternative would be to not freeze the object and Augment it on Insert or Add
             //The other option would be to implement Capacity and when the List resizes define new getters.
             //This will only be until we have Proxy, then we can even seal this Instance and referece the proxy.
-            (function (self, counter) { while (counter >= 0) $CreateGetterSetter(self, --counter); })(this, capacity * 2);
+            (function (self, counter) { while (counter >= 0) $CreateGetterSetter$List(self, --counter); })(this, capacity * 2);
 
             //And I bet before then I could even use Object.watch or a polyfill of it to enfore a pseudo 'missing_method' and then invoke this function... how fortuitist
 
@@ -717,7 +717,7 @@
         $Export($cleanPrototype, window, 'CleanPrototype');
 
         //Converts arguments into ParameterInfo's
-        function $convertLegacyArguments(argumentz) {
+        function $ConvertArguments(argumentz) {
             if (!argumentz || argumentz.length && argumentz[0] instanceof ParameterInfo) return argumentz;
             for (var i = 0, e = argumentz.length; i < e; ++i) {
                 argumentz[i] = new ParameterInfo({
@@ -725,32 +725,33 @@
                     value: argumentz[i],
                     defaultValue: argumentz[i],
                     rawDefaultValue: argumentz[i],
-                    parameterType: $getTypeName(argumentz[i]) || typeof argumentz[i],
+                    parameterType: $GetTypeName(argumentz[i]) || typeof argumentz[i],
                     optional: false,
                     name: argumentz[i].toString()
                 });
             }
             return argumentz;
         }
-        $Export($convertLegacyArguments, window, 'ConvertArguments');
+        $Export($ConvertArguments, window, 'ConvertArguments');
 
         //Checks for CLR Binding or a safe hook as the context of the caller or associated call chain
-        function $isCLR() {
+        function $IsCLR() {
             try { Security.checkScope(); return true; }
             catch (_) { return false; }
             return this === newScope; //Should never happen unless ...
         }
 
-        //Export $isCLR as IsCLR
-        Export($isCLR, window, 'IsCLR');
+        //Export $IsCLR as IsCLR
+        Export($IsCLR, window, 'IsCLR');
 
         //Checks for CLR Scope
-        function $checkCLR() { if (!$isCLR()) throw 'The CLR is required to access this scope'; }
+        function $CheckCLRAccess() { if (!$IsCLR()) throw 'The CLR is required to access this scope'; }
 
-        //Export $checkCLR as CheckCLRAccess
-        Export($checkCLR, window, 'CheckCLRAccess');
+        //Export $CheckCLRAccess as CheckCLRAccess
+        Export($CheckCLRAccess, window, 'CheckCLRAccess');
 
-        var Function = window.Function;
+        //Scope the Function
+        var Function = this.Function = window$Function = window.Function;
 
         //Backup GarbadgeCollector
         var _CollectGarbadge = typeof CollectGarbadge === 'undefined' ? new Function('return delete this') : CollectGarbadge;
@@ -767,7 +768,7 @@
         $CollectGarbadge.timeOuts = {};
 
         //Define the property of TimeToLive = 5 + Minutes in milliseconds
-        Object.defineProperty($CollectGarbadge, 'TimeToLive', { value: 300025 });
+        Object.defineProperty($CollectGarbadge, 'TimeToLive', { enumerable: true, value: 300025 });
 
         Object.seal($CollectGarbadge);
         Object.freeze($CollectGarbadge);
@@ -776,7 +777,7 @@
         $Export($CollectGarbadge, window, 'CollectGarbadge');
 
         //Gets the Type name from the Constructor given (Native/Declared Types Only)
-        function $getTypeName(type) {
+        function $GetTypeName(type) {
             try {
                 type = typeof type !== 'undefined' ? IsNullOrUndefined(type.GetTypeName) ? type : type.GetTypeName() : type;
                 if (!(typeof type === 'string' || type instanceof String)) {
@@ -792,17 +793,17 @@
         }; //0 = function, 1 = name and  so on => {, [native / code], }
 
         //Allows a constructor to determine if new was called
-        function $isNewObject(object) { return ((new Object() === object) || (object.toString() === '[object Object]')); }
+        function $IsNewObject(object) { return ((object.toString() === '[object Object]') || (new Object() === object)); }
 
-        //Export $getTypeName to the window as GetTypeName
-        Export($getTypeName, window, 'GetTypeName');
+        //Export $GetTypeName to the window as GetTypeName
+        Export($GetTypeName, window, 'GetTypeName');
 
         //Is function
         function $Is(what, type) {
             try {
-                if (!type) return $getTypeName(what) === $getTypeName(type);
-                else if (typeof what === $getTypeName(type).toLowerCase()) return true;
-                else if (($getTypeName(what) + '') === ($getTypeName(type) + '')) return true;
+                if (!type) return $GetTypeName(what) === $GetTypeName(type);
+                else if (typeof what === $GetTypeName(type).toLowerCase()) return true;
+                else if (($GetTypeName(what) + '') === ($GetTypeName(type) + '')) return true;
                 else if (what instanceof type) return true;
                 else if ($As(what, type)) return true;
                 else for (var i in what.constructor) if (what.constructor.i === type || what.constructor.i === type.constructor) return true;
@@ -824,7 +825,7 @@
         Export($Is, window, 'Is');
 
         //As
-        function $As(what, type) { try { return new type(what); } catch (_) { return $cast(what, type); } }
+        function $As(what, type) { try { return new type(what); } catch (_) { return $Cast(what, type); } }
 
         //Export to static
         Object.as = $As;
@@ -863,7 +864,7 @@
             var inheritMembers = arguments[2] || false,
                 inheritPrototype = arguments[3] || false,
                 linkedName = $Subclass.Linker.TypePrefix + derivedConstructor.toString() + $Subclass.Linker.LinkSymbol + constructor.toString(),
-                isInstance = $isNewObject(constructor);
+                isInstance = $IsNewObject(constructor);
 
             if (!($Subclass.Linker[linkedName] && $Subclass.Linker[linkedName].constructor === constructor)) {
 
@@ -888,18 +889,18 @@
             $cleanPrototype(derivedConstructor);
 
             //Copy prototype if indicted
-            if (inheritPrototype && isInstance && derivedConstructor.$inheritsMembers === true) for (var i in constructor.prototype) if (!(i === 'constructor')) derivedConstructor.prototype[i] = constructor.prototype[i];
+            if (inheritPrototype && isInstance && derivedConstructor.$inheritsMembers === true) for (var i in constructor.prototype) if (!(i === 'constructor') && !i.indexOf('$') >= 0) derivedConstructor.prototype[i] = constructor.prototype[i];
 
             //Copy members if indicted
-            if (inheritMembers && isInstance && derivedConstructor.$inheritsMembers === true) for (var j in constructor) if (!(j === 'prototype')) derivedConstructor[j] = constructor[j];
+            if (inheritMembers && isInstance && derivedConstructor.$inheritsMembers === true) for (var j in constructor) if (!(j === 'prototype') && !i.indexOf('$') >= 0) derivedConstructor[j] = constructor[j];
 
             //Store __TypeName only if previously undefined
-            if (IsNull(derivedConstructor.__TypeName)) Object.defineProperty(derivedConstructor, '__TypeName', {
+            if (IsNullOrUndefined(derivedConstructor.__TypeName)) Object.defineProperty(derivedConstructor, '__TypeName', {
                 get: function () { return linkedName; }
             });
 
-            // Ensure the base keyword works in the scope
-            if (IsNullOrUndefined(derivedConstructor.base)) Object.defineProperty(derivedConstructor, 'base', { value: constructor });
+            // Ensure the base keyword works in the scope of the class. Take note that Only Null Values are checked. Undefined will be allowed to bypass as a baseless type.
+            if (IsNull(derivedConstructor.base)) Object.defineProperty(derivedConstructor, 'base', { value: constructor });
 
             //Return the new constructor
             return derivedConstructor;
@@ -987,10 +988,25 @@
         Export(baseClass, window);
 
 
+        //SSPC
+        var TypeDescriptorHash = {};
+
         //If the base class is abstract return the reference to it otherwise return the reference to the result of $Subclass given this instance and the baseClass
         function CLRClass(argumentz) {
-            var base = this.base || this.constructor || this.prototype;
-            Object.defineProperty(this, '__TypeName', { value: base.__TypeName }); // Ensure the __TypeName is present                        
+            var base = this.base || this.constructor || this.prototype, typeName;
+            typeName = $GetTypeName(base);
+            TypeDescriptorHash[typeName] = TypeDescriptorHash[typeName] || {
+                get: function () { return typeName; },
+                set: function (value) { $CheckCLRAccess(); TypeDescriptorHash[this] = value; }
+            };
+
+            Object.defineProperty(this, '__TypeName', TypeDescriptorHash[typeName]); // Ensure the __TypeName is present                        
+
+            //CLR Methods
+            this.toString = function () { return this.__TypeName; }
+            this.GetTypeName = function () { return CLRObject.toString(); }
+            this.ToString = CLRObject.toString;
+
             return base.apply && typeof (base = base.apply(this, argumentz)) !== 'undefined' ? base : base = $Subclass(this, base); // Return the base constructor
         }
         CLRClass.toString = function () { return /*'[object */'CLRClass'/*]'*/; };
@@ -1000,7 +1016,7 @@
         Export(CLRClass, window);
 
         Security.addSafeScope(CLRClass, 1, Function.prototype.apply);
-        Security.addSafeScope(CLRClass, 4, $cast);
+        Security.addSafeScope(CLRClass, 4, $Cast);
 
         function $default(type) { var result = null; try { result = new type(); } catch (_) { result = arguments[0] || null; } return result ? result.valueOf() : result; }
         $Export($default, window, 'Default');
@@ -1035,24 +1051,16 @@
         Export($using, window, 'using');
 
         //The CLRObject which will be the base class of all classes going forward... It will be exported under System.Object
-        function CLRObject() {
-            CLRClass.apply(this, arguments);
-            this.toString = function () { return this.__TypeName; }
-            this.GetTypeName = function () { return CLRObject.toString(); }
-            this.ToString = CLRObject.toString;
-        }
-
+        function CLRObject() { CLRClass.apply(this, arguments); }
         CLRObject.toString = function () { return /*'[object CLRClass */'CLRObject'/*]'*/; }
-
         CLRObject = Subclass(CLRClass, CLRObject);
-
         Export(CLRObject, window, 'CLRObject');
 
         //The System Object
         var System = {}; //Might need a namespace construct
 
         //Array like Getter/Setter Logic, creates a getter for the List to access the inner array at the given index
-        function $CreateGetterSetter(clrString, index) {
+        function $CreateGetterSetter$String(clrString, index) {
             try {
                 Object.defineProperty(clrString, index, {
                     get: function () {
@@ -1150,7 +1158,7 @@
                 get: function () { return length; }
             });
 
-            (function (self, counter) { while (counter >= 0) $CreateGetterSetter(self, --counter); })(this, length);
+            (function (self, counter) { while (counter >= 0) $CreateGetterSetter$String(self, --counter); })(this, length);
 
             CleanPrototype(this);
 
@@ -1224,7 +1232,7 @@
                 return stringValue;
             }
 
-            this.cast = $cast;
+            this.cast = $Cast;
         }
 
         myClass.toString = function () { return /*'[object baseClass */'myClass'/*]'*/; };
@@ -1238,13 +1246,20 @@
         function anotherClass(instance) {
 
             //Store the base reference
-            var base = (instance && Is(instance, myClass) ? instance : new myClass());
+            var base = new myClass(),
             //If you would like the inherited base members to be public then utilize the latter
             //var base = myClass; base.apply(this);
 
-            var myString = 'Test',
+               myString = 'Test',
                 myInt = 1;
 
+            //Copy constructor
+            if (instance && Is(instance, myClass)) {
+                myString = instance.myString;
+                myInt = instance.myInt;
+            }
+
+            //Override
             this.valueOf = function () {
                 if (this instanceof baseClass) return myInt;
                 return myString;
@@ -1260,13 +1275,13 @@
         Export(anotherClass, window);
 
         //This is maybe not the best place
-        function $cast(type, call) {
+        function $Cast(type, call) {
             if (!type) return;
             if (!call) return type.bind(this);
             return call.bind(new type(this)).call(this);
         }
 
-        Export($cast, window, 'cast');
+        Export($Cast, window, 'Cast');
 
         //Probably not needed
         var $Function$prototype$call = Function.prototype.call;
@@ -1645,41 +1660,35 @@
 
         // hide, protect
 
-        Function.prototype.hide = function () {
-            this.$hidden = true;
-            return this;
-        };
+        var FunctionHidden = {};
 
-        Function.prototype.protect = function () {
-            this.$protected = true;
-            return this;
-        };
+        Function.prototype.hide = function () { return FunctionHidden[this] = true; }
+
+        Function.unhide = function () { CheckCLRAccess(); return FunctionHidden[this] = false; }
+
+        var FunctionProtected = {};
+
+        Function.prototype.protect = function () { return FunctionProtected[this] = true; }
+
+        Function.unprotect = function () { CheckCLRAccess(); return FunctionProtected[this] = false; }
 
         Function.implement({
 
             attempt: function (args, bind) {
-                try {
-                    return this.apply(bind, Array.from(args));
-                } catch (e) { }
-
+                try { return this.apply(bind, Array.from(args)); }
+                catch (_) { }
                 return null;
             },
 
             pass: function (args, bind) {
                 var self = this;
                 if (args != null) args = Array.from(args);
-                return function () {
-                    return self.apply(bind, args || arguments);
-                };
+                return function () { return self.apply(bind, args || arguments); }
             },
 
-            delay: function (delay, bind, args) {
-                return setTimeout(this.pass((args == null ? [] : args), bind), delay);
-            },
+            delay: function (delay, bind, args) { return setTimeout(this.pass((args == null ? [] : args), bind), delay); },
 
-            periodical: function (periodical, bind, args) {
-                return setInterval(this.pass((args == null ? [] : args), bind), periodical);
-            }
+            periodical: function (periodical, bind, args) { return setInterval(this.pass((args == null ? [] : args), bind), periodical); }
 
         });
 
@@ -1716,9 +1725,7 @@
 
         var toString = Object.prototype.toString;
 
-        Type.isEnumerable = function (item) {
-            return (item != null && typeof item.length == 'number' && toString.call(item) != '[object Function]');
-        };
+        Type.isEnumerable = function (item) { return (item != null && typeof item.length == 'number' && toString.call(item) != '[object Function]'); }
 
         var hooks = {};
 
@@ -1730,7 +1737,7 @@
         var implement = function (name, method) {
             if (method && method.$hidden) return;
 
-            var hooks = hooksOf(this);
+            var hooks = hooksOf(this);//....
 
             for (var i = 0; i < hooks.length; i++) {
                 var hook = hooks[i];
@@ -1741,9 +1748,8 @@
             var previous = this.prototype[name];
             if (previous == null || !previous.$protected) this.prototype[name] = method;
 
-            if (this[name] == null && typeOf(method) == 'function') extend.call(this, name, function (item) {
-                return method.apply(item, slice.call(arguments, 1));
-            });
+            if (this[name] == null && typeOf(method) == 'function') extend.call(this, name, function (item) { return method.apply(item, slice.call(arguments, 1)); });
+
         };
 
         var extend = function (name, method) {
@@ -2801,15 +2807,128 @@
 
         })();
 
-        //Scope the Function
-        var Function = this.Function = window$Function = window.Function;
+        /*
+        ---
+
+        name: Class
+
+        description: Contains the Class Function for easily creating, extending, and implementing reusable Classes.
+
+        license: MIT-style license.
+
+        requires: [Array, String, Function, Number]
+
+        provides: Class
+
+        ...
+        */
+
+        (function () {
+
+            var Class = this.Class = new Type('Class', function (params) {
+                if (instanceOf(params, Function)) params = { initialize: params };
+
+                var newClass = function () {
+                    reset(this);
+                    if (newClass.$prototyping) return this;
+                    this.$caller = null;
+                    var value = (this.initialize) ? this.initialize.apply(this, arguments) : this;
+                    this.$caller = this.caller = null;
+                    return value;
+                } .extend(this).implement(params);
+
+                newClass.$constructor = Class;
+                newClass.prototype.$constructor = newClass;
+                newClass.prototype.parent = parent;
+
+                return newClass;
+            });
+
+            var parent = function () {
+                if (!this.$caller) throw new Error('The method "parent" cannot be called.');
+                var name = this.$caller.$name,
+		parent = this.$caller.$owner.parent,
+		previous = (parent) ? parent.prototype[name] : null;
+                if (!previous) throw new Error('The method "' + name + '" has no parent.');
+                return previous.apply(this, arguments);
+            };
+
+            var reset = function (object) {
+                for (var key in object) {
+                    var value = object[key];
+                    switch (typeOf(value)) {
+                        case 'object':
+                            var F = function () { };
+                            F.prototype = value;
+                            object[key] = reset(new F);
+                            break;
+                        case 'array': object[key] = value.clone(); break;
+                    }
+                }
+                return object;
+            };
+
+            var wrap = function (self, key, method) {
+                if (method.$origin) method = method.$origin;
+                var wrapper = function () {
+                    if (method.$protected && this.$caller == null) throw new Error('The method "' + key + '" cannot be called.');
+                    var caller = this.caller, current = this.$caller;
+                    this.caller = current; this.$caller = wrapper;
+                    var result = method.apply(this, arguments);
+                    this.$caller = current; this.caller = caller;
+                    return result;
+                } .extend({ $owner: self, $origin: method, $name: key });
+                return wrapper;
+            };
+
+            var implement = function (key, value, retain) {
+                if (Class.Mutators.hasOwnProperty(key)) {
+                    value = Class.Mutators[key].call(this, value);
+                    if (value == null) return this;
+                }
+
+                if (typeOf(value) == 'function') {
+                    if (value.$hidden) return this;
+                    this.prototype[key] = (retain) ? value : wrap(this, key, value);
+                } else {
+                    Object.merge(this.prototype, key, value);
+                }
+
+                return this;
+            };
+
+            var getInstance = function (klass) {
+                klass.$prototyping = true;
+                var proto = new klass;
+                delete klass.$prototyping;
+                return proto;
+            };
+
+            Class.implement('implement', implement.overloadSetter());
+
+            Class.Mutators = {
+
+                Extends: function (parent) {
+                    this.parent = parent;
+                    this.prototype = getInstance(parent);
+                },
+
+                Implements: function (items) {
+                    Array.from(items).each(function (item) {
+                        var instance = new item;
+                        for (var key in instance) implement.call(this, key, instance[key], true);
+                    }, this);
+                }
+            };
+
+        })();
 
         //Backup the old apply function
         var Function$prototype$apply = window$Function.prototype.apply;
 
         //Ensures functions cannot operate on CLR Classes unless they are bound in the rules of the CLR
         window$Function.prototype.apply = function Function$prototype$apply() {
-            $checkCLR();
+            $CheckCLRAccess();
             try { return Function$prototype$apply(this, arguments); }
             catch (_) { return Function$prototype$apply; }
             return void (this);
