@@ -750,6 +750,19 @@
         //Export $CheckCLRAccess as CheckCLRAccess
         Export($CheckCLRAccess, window, 'CheckCLRAccess');
 
+        //Makes a class as Abstract
+        var _Abstract = {};
+
+        function $IsAbstract(type) { return constructor.constructor.constructor === $abstractConstructor || _Abstract[type] !== undefined && type instanceof _Abstract[type]; }
+        $Export($IsAbstract, window, 'IsAbstract');
+
+        function $MakeAbstract(type) { return _Abstract[type] = type; }
+        $Export($MakeAbstract, window, 'MakeAbstract');
+
+
+        //The abstract class constructor
+        function $abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' +  (constructor ? JSON.stringify(constructor) : 'abstract') + ', ' + $GetTypeName(constructor || baseClass) + ']'; }
+
         //Scope the Function
         var Function = this.Function = window$Function = window.Function;
 
@@ -759,7 +772,8 @@
         //Garbadge Collector
         function $CollectGarbadge() { javascript: with (new Void) _CollectGarbadge(); }
         $CollectGarbadge.toString = function () { return '$CollectGarbadge' }
-        $CollectGarbadge.$abstract = true;
+        $CollectGarbadge.valueOf = function () { return $CollectGarbadge; }
+        $MakeAbstract($CollectGarbadge);
 
         //Replace
         CollectGarbage = $CollectGarbadge;
@@ -844,11 +858,20 @@
         //Export to prototype
         //Object.prototype.is = Object.is;        
 
+        //For construct 
+        function $For(start, end, body) { for (; start < end; ++start) body(i); }
+        $Export($For, window, 'For');
+
+        //Forever construct , (while(true))
+        function $Forever(body) { return $For(-Infinity, Infinity, body); }
+        $Export($Forever, window, 'Forever');
+
+        //ForEach with start and end support
+        function $ArrayForEach(array, start, end, body, bind) { array.forEach(function (_, i) { if (i < start || i > end) return; body(_, i); }, bind || this); }
+        $Export($ArrayForEach, window, 'ArrayForEach');
+
         //Expose the CLR as readonly
         Object.defineProperty(window, 'CLR', { value: newScope });
-
-        //The abstract class constructor
-        function $abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + JSON.stringify(constructor) + ', ' + this.$abstract.toString() + ']'; }
 
         //Throws for sealed attribute
         function $checkSealed(constructor, derivedConstructor) { if (Object.isSealed(constructor)) throw derivedConstructor.toString() + 'cannot inherit from sealed class' + constructor.toString() + '.'; };
@@ -857,6 +880,9 @@
         //Modified for netjs by Julius Friedman
         //Description: Helps interpreterd code to function correctly after compile with respect to instanceof
         function $Subclass(constructor, derivedConstructor/*,Boolean inheritMembers = false, Boolean inheritPrototype = false*/) {
+
+            //Ensure not abstract
+            if ($IsAbstract(constructor) && !derivedConstructor) $abstractConstructor(constructor);
 
             //Ensure constructor is not sealed
             $checkSealed(constructor, derivedConstructor);
@@ -870,8 +896,6 @@
 
                 //Note weather or not the derivedConstructor inherits the members of the base
                 derivedConstructor.$inheritsMembers = inheritMembers;
-
-                if (constructor.$abstract && !derivedConstructor) $abstractConstructor(constructor);
 
                 var surrogateConstructor = $Subclass.Linker[$Subclass.Linker.ConstructorPrefix + linkedName + $Subclass.Linker.LinkSymbol + $Subclass.Linker.SurrogateConstructorPostFix] = function () { return constructor.apply ? constructor.apply(derivedConstructor) : undefined; }
 
@@ -951,13 +975,14 @@
         //The default constructor of the CLRClass
         //The reason this is here is because constructors must return void this we cannot return the apply call to the top of the stack with the defaultConstructor
         function applyInstance(constructor, derivedConstructor) {
+            if($IsAbstract(this)) throw $abstractConstructor(this);
             try { $checkSealed(constructor, derivedConstructor); return constructor.apply(derivedConstructor); }
             catch (_) { return new constructor(); }
             return new Void(); //
         }
 
         //The default constructor of the CLRClass
-        function defaultConstructor(instance) {
+        function defaultConstructor(instance) {            
             instance = instance || this;
             try { applyInstance(instance, instance.$base || Object); }
             catch (_) { throw $abstractConstructor(instance); }
@@ -976,13 +1001,12 @@
         //        });
 
         //Pseudo Classes
-        var baseClass = defaultConstructor; //(this);
+        var baseClass = $abstractConstructor; //(this);
         baseClass.$base = baseClass.constructor = $abstractConstructor;
-        baseClass.$abstract = true;
         baseClass.toString = function () { return /*'[object CLRClass */'baseClass'/*]'*/; };
 
         //Export Defined Classes for Unit Tests and make pseudo keyword 'abstract'
-        Export(baseClass, window, '$abstract');
+        Export(baseClass, window, 'Abstract');
         Export(baseClass, window);
 
 
@@ -1021,7 +1045,7 @@
 
         //Method: using
         //Description: Allows using of disposable objects
-        function $using(disposable) {
+        function $Using(disposable) {
             //If there is no disposable return
             if (IsNullOrUndefined(disposable) || IsNullOrUndefined(disposable.Dispose)) return;
             //Scope the finalizer
@@ -1046,7 +1070,7 @@
 
         }
 
-        Export($using, window, 'using');
+        Export($Using, window, 'Using');
 
         //The CLRObject which will be the base class of all classes going forward... It will be exported under System.Object
         function CLRObject() { CLRClass.apply(this, arguments); }
@@ -1290,7 +1314,7 @@
                 //Should ConvertLegacyArguments before call and save them seprately. After which it should check for any parameters with IsIn
                 //After calling it should then check for any parameters with IsOut and ensure value was set in function. 
             }
-            return this.$abstract ? $abstractConstructor(this.base || this.constructor || this.prototype || this) : $Function$prototype$call.apply(this, arguments)
+            return $IsAbstract(this) ? $abstractConstructor(this.base || this.constructor || this.prototype || this) : $Function$prototype$call.apply(this, arguments)
         };
 
         Security.addSafeScope(Function$prototype$apply, 3, Function.prototype.call);
@@ -1311,7 +1335,7 @@
         Reflection.prototype = Reflection;
         Reflection.constructor = Reflection;
         Reflection.toString = function () { return 'Reflection'; }
-        Reflection.$abstract = true;
+        $MakeAbstract(Reflection);
 
         //Lex the given function to get C# style attributes
         function Lex(func) {
