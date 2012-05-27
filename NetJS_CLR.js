@@ -472,11 +472,11 @@
 
             // Method: Sum
             // Description: For each element given the query a value is summed and the total is returned from expressing the element to the clause
-            this.Sum = function (query) { var sum = undefined; this.ForEach(function (tEl) { sum += query(tEL); }); return sum; }
+            this.Sum = function (quer/*, sumStart*/) { var sum = arguments[0] || 0; this.ForEach(function (tEl) { sum += query(tEL); }); return sum; }
 
             // Method: Sum
             // Description: For each element given the query a value is summed and the total is returned / by the amount of conforming items from expressing the element to the caluse
-            this.Average = function (query) { var sum = undefined, dividend = 1; this.ForEach(function (tEl) { ++dividend; sum += query(tEL); }); return sum / dividend; }
+            this.Average = function (query/*, sumStart*/) { var sum = arguments[0] || 0, dividend = 1; this.ForEach(function (tEl) { ++dividend; sum += query(tEL); }); return sum / dividend; }
 
             // Method:  Any
             // Description:  returns true if any element in the list was matched by the query. (Returns false if there 0 items in the List).
