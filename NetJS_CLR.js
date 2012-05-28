@@ -154,10 +154,10 @@
             /*base = new Class(IEnumerable),*/
             var key = ++$List$Created,  // Identify each List instance with an incremented Id.
                 oType = arguments[0] || undefined,      // Used to ensure that all objects added to the list are of the same type.
-                listArray = arguments[3] || [],         // Stores all the list data.
+                listArray = arguments[1] || [],         // Stores all the list data.
                 capacity = arguments[2] || 10,        // Used to create getters and setters until I have worked out a different way        
                 $containsLastResult = undefined; //Storage pointer for the last result of Contains call
-            if (!arguments[4]) $List$Instances[key] = this; // Store instance with key if allowed             
+            if (!arguments[3]) $List$Instances[key] = this; // Store instance with key if allowed             
             if (capacity < listArray.length) capacity *= listArray.length; // Ensure capacity
 
 
@@ -404,18 +404,36 @@
             this.Contains = function (object, start) {
                 if (!object) return false;
                 var contained = false,
-                keys = Object.keys(object);
+                keys = undefined;
                 start = start || 0;
-                //Iterate list
-                listArray.forEach(function (tEl) {
-                    //Iterate keys
-                    keys.forEach(function (key, index) {
-                        if (index < start) return;
-                        //Try to ascertain equality, contained is equal to the expression of tEl[key] being exactly equal to object[key]'s value
-                        try { contained = (tEl[key] === object[key]); contained ? $containsLastResult = index : $containsLastResult = -1; }
-                        catch (_) { contained = false; $containsLastResult = -1; }
+                try { //Object Type
+                    Object.keys(object);
+                    //Iterate list
+                    listArray.forEach(function (tEl) {
+                        //Iterate keys
+                        keys.forEach(function (key, index) {
+                            if (index < start || contained) return;
+                            //Try to ascertain equality, contained is equal to the expression of tEl[key] being exactly equal to object[key]'s value
+                            try { contained = (tEl[key] === object[key]); contained ? $containsLastResult = index : $containsLastResult = -1; }
+                            catch (_) { contained = false; $containsLastResult = -1; }
+                            if (containsLastResult !== -1) return;
+                        });
                     });
-                });
+                }
+                catch (_) { //Native Type
+                    keys = [object];
+                    //Iterate list
+                    listArray.forEach(function (tEl, index) {
+                        //Iterate keys
+                        keys.forEach(function (key) {
+                            if (index < start || contained) return;
+                            //Try to ascertain equality, contained is equal to the tEl being exactly equal to the inner element
+                            try { contained = (tEl === key); contained ? $containsLastResult = index : $containsLastResult = -1; }
+                            catch (_) { contained = false; $containsLastResult = -1; }                            
+                        });
+                    });
+                }
+
                 return contained;
             }
 
@@ -514,7 +532,7 @@
                 capacity += arguments[0].length;
                 oType = arguments[0].$type; // Set the type of the List from the given
                 listArray = arguments[0].array; // Set the inner array of the List from the given
-            } else if (arguments[0] && arguments[0].length) try { //If there is a type given it may be contained in an array which is to be used as the interal array..       
+            } else if (arguments[0] && arguments[0] instanceof Array && arguments[0].length) try { //If there is a type given it may be contained in an array which is to be used as the interal array..       
                 capacity += arguments[0].length;
                 oType = arguments[0][0].constructor; // Set type of the List from the first element in the given array
                 arguments[1] = arguments[1] || arguments[0]; // Make a new argument incase one is not given which should be the array given. This will be used after AddRange is constructed to verify each given item complies with the List logic.
@@ -668,20 +686,52 @@
                     //enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
                     //configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
                     get: function () {
-                        var key = dictionary.Keys[key];
-                        if (!key) throw 'Key "' + key + '" Not Found in Dictionary.Get';
-                        return key;
+                        //$Validate(dictionary.Keys, key);
+                        //if (!key instanceof dictionary.KeyType) throw 'Invalid Key Type in Dictionary.Get';
+                        var _key = dictionary.Keys.IndexOf(key);
+                        if (_key === -1) throw 'Key "' + key + '" Not Found in Dictionary.Get';
+                        return dictionary.Values.ElementAt(_key);
                     },
                     set: function (value) {
-                        var key = dictionary[key];
-                        if (!key) throw 'Key "' + key + '" Not Found in Dictionary.Set';
-                        $Validate(dictionary.Keys, value);
-                        dictionary.Keys[key] = value;
+                        var _key = dictionary.Keys.IndexOf(key);
+                        if (_key === -1) throw 'Key "' + key + '" Not Found in Dictionary.Set';
+                        $Validate(dictionary.Values, value);
+                        dictionary.Values[_key] = value;
                     }
                 });
             }
             catch (_) { }
         }
+
+        function KeyValuePair(T, U) {
+            var key = T,
+                value = u;
+
+            // Property: Keys
+            // Description: Gets the List utilized for the Storage of Keys of the Dictionary
+            Object.defineProperty(this, 'Key',
+           {
+               // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
+               enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+               configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+               get: function () { return key; }
+           });
+
+            // Property: Values
+            // Description: Gets the List utilized for the Storage of Values of the Dictionary
+            Object.defineProperty(this, 'Value',
+           {
+               // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
+               enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+               configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+               get: function () { return value; }
+           });
+
+            Object.freeze(this);
+
+        }
+
+        Object.freeze(KeyValuePair);
 
         //The Dictionary Type
         function Dictionary(T, U) {
@@ -707,15 +757,17 @@
 
             this.IndexOfValue = function (U) { this.ContainsValue(U); return $containsLastResult; }
 
-            this.KeyOf = function (U) { return this.ContainsValue(U) ? keys[$containsLastResult] : $Default(U); }
+            this.KeyOf = function (U) { return this.ContainsValue(U) ? keys[$containsLastResult] : null; }
 
-            this.ValueOf = function (T) { return this.ContainsKey(T) ? values[$containsLastResult] : $Default(U); }
+            this.ValueOf = function (T) { return this.ContainsKey(T) ? values[$containsLastResult] : null; }
 
             this.Add = function (T, U) {
                 if (!T) return;
                 if (this.ContainsKey(T)) throw 'Key : "' + T + '" Already Added At Dictionary.Add';
                 keys.Add(T);
                 values.Add(U);
+
+                $CreateGetterSetter$Dictionary(this, T);
             }
 
             this.Remove = function (T, U, count /* = 1*/) {
@@ -739,7 +791,9 @@
 
             this.RemoveAll = function (T, U) { return this.Remove(T, U, Infinity); }
 
-            this.Count = function (T, U) { var c = 0; if (T) c += keys.Count(T); if (U) c += values.Count(U); return c !== -1 ? c : 0; }
+            this.Count = function (T, U) { var c = 0; if (T || !U) c += keys.Count(T); if (U) c += values.Count(U); return c !== -1 ? c : 0; }
+
+            this.ToArray = function (keys) { return keys ? keys.array : values.array; }
 
             // Property: Keys
             // Description: Gets the List utilized for the Storage of Keys of the Dictionary
@@ -761,7 +815,29 @@
                get: function () { return values; }
            });
 
-            return Object.freeze((function (self) { self.Keys.ForEach(function (k) { $CreateGetterSetter$Dictionary(self, k); }); return self; })(this));
+            // Property: KeyType
+            // Description: Gets the Type utilized for the Storage of Keys of the Dictionary
+            Object.defineProperty(this, 'KeyType',
+           {
+               // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
+               enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+               configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+               get: function () { return keys.$type; }
+           });
+
+            // Property: ValueType
+            // Description: Gets the List utilized for the Storage of Values of the Dictionary
+            Object.defineProperty(this, 'ValueType',
+           {
+               // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
+               enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+               configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+               get: function () { return values.$type; }
+           });
+
+            //return Object.freeze((function (self) { self.Keys.ForEach(function (k) { $CreateGetterSetter$Dictionary(self, k); }); return self; })(this));
+
+            return this;
 
         }
 
@@ -937,6 +1013,11 @@
             }
             catch (_) { return false; }
         }
+        Export($Is, window, 'Is');
+
+        //IsNot function
+        function $IsNot(what, type) { return !$Is(wha, type); }
+        Export($IsNot, window, 'IsNot');
 
         function $IsNull(what) { return what === null; };
         Export($IsNull, window, 'IsNull');
