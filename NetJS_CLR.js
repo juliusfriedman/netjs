@@ -659,6 +659,114 @@
 
         Export(List, window, 'List');
 
+        //Array like Getter/Setter Logic, creates a getter for the Dictionary to access the inner array at the given key
+        function $CreateGetterSetter$Dictionary(dictionary, key) {
+            try {
+                Object.defineProperty(dictionary, key, {
+                    //writable: true, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
+                    //enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+                    //configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+                    get: function () {
+                        var key = dictionary.Keys[key];
+                        if (!key) throw 'Key "' + key + '" Not Found in Dictionary.Get';
+                        return key;
+                    },
+                    set: function (value) {
+                        var key = dictionary[key];
+                        if (!key) throw 'Key "' + key + '" Not Found in Dictionary.Set';
+                        $Validate(dictionary.Keys, value);
+                        dictionary.Keys[key] = value;
+                    }
+                });
+            }
+            catch (_) { }
+        }
+
+        //The Dictionary Type
+        function Dictionary(T, U) {
+            if (!T || !U) return;
+            var keys = new List(T),
+                values = new List(U),
+                $containsLastResult;
+
+            this.Contains = function (X/*, onlyKeys, onlyValues*/) {
+                var index = -1;
+                if (arguments[1] && !arguments[2]) index = keys.IndexOf(X);
+                if (!arguments[1] && !arguments[2] && index === -1) index = values.IndexOf(X);
+                return $containsLastResult = index !== -1;
+            }
+
+            this.ContainsKey = function (T) { return this.Contains(T, true); }
+
+            this.ContainsValue = function (U) { return this.Contains(U, false, true); }
+
+            this.IndexOf = function (U) { this.Contains(U); return $containsLastResult; }
+
+            this.IndexOfKey = function (T) { this.ContainsKey(T); return $containsLastResult; }
+
+            this.IndexOfValue = function (U) { this.ContainsValue(U); return $containsLastResult; }
+
+            this.Add = function (T, U) {
+                if (!T) return;
+                if (this.ContainsKey(T)) throw 'Key : "' + T + '" Already Added At Dictionary.Add';
+                keys.Add(T);
+                values.Add(U);
+            }
+
+            this.Remove = function (T, U, count /* = 1*/) {
+
+                if (!T) return;
+
+                var removed = [],
+                    toRemove = -1;
+                count = count || 1;
+
+                while (count >= 0 && (toRemove = this.IndexOfKey(T)) !== -1) {
+                    if (U && keys[toRemove] !== U) break;
+                    else removed.push(values.RemoveAt(toRemove));
+                    count--;
+                }
+
+                return removed;
+
+            }
+
+            this.RemoveAll = function (T, U) { return this.Remove(T, U, Infinity); }
+
+            this.Count = function (T, U) { var c = 0; if (T) c += keys.Count(T); if (U) c += values.Count(U); return c !== -1 ? c : 0; }
+
+            // Property: Keys
+            // Description: Gets the List utilized for the Storage of Keys of the Dictionary
+            Object.defineProperty(this, 'Keys',
+           {
+               // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
+               enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+               configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+               get: function () { return keys; }
+           });
+
+            // Property: Values
+            // Description: Gets the List utilized for the Storage of Values of the Dictionary
+            Object.defineProperty(this, 'Values',
+           {
+               // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
+               enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
+               configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
+               get: function () { return values; }
+           });
+
+            keys.ForEach(function (k) { $CreateGetterSetter$Dictionary(this, k); });
+
+            return Object.freeze(this);
+
+        }
+
+        Dictionary.toString = function () { return /*'[object Class */'Dictionary'/*]'*/; };
+
+        Object.freeze(Dictionary);
+
+        Export(Dictionary, window, 'Dictionary');
+
         //The void
         function Void() { return { toString: function () { return Void.toString(); }, valueOf: function () { javascript: void (arguments); } }; }
         Void.toString = 'Void';
@@ -761,7 +869,7 @@
 
 
         //The abstract class constructor
-        function $abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' +  (constructor ? JSON.stringify(constructor) : 'abstract') + ', ' + $GetTypeName(constructor || baseClass) + ']'; }
+        function $abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + (constructor ? JSON.stringify(constructor) : 'abstract') + ', ' + $GetTypeName(constructor || baseClass) + ']'; }
 
         //Scope the Function
         var Function = this.Function = window$Function = window.Function;
@@ -975,14 +1083,14 @@
         //The default constructor of the CLRClass
         //The reason this is here is because constructors must return void this we cannot return the apply call to the top of the stack with the defaultConstructor
         function applyInstance(constructor, derivedConstructor) {
-            if($IsAbstract(this)) throw $abstractConstructor(this);
+            if ($IsAbstract(this)) throw $abstractConstructor(this);
             try { $checkSealed(constructor, derivedConstructor); return constructor.apply(derivedConstructor); }
             catch (_) { return new constructor(); }
             return new Void(); //
         }
 
         //The default constructor of the CLRClass
-        function defaultConstructor(instance) {            
+        function defaultConstructor(instance) {
             instance = instance || this;
             try { applyInstance(instance, instance.$base || Object); }
             catch (_) { throw $abstractConstructor(instance); }
