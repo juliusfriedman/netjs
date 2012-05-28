@@ -409,10 +409,10 @@
                 try { //Object Type
                     Object.keys(object);
                     //Iterate list
-                    listArray.forEach(function (tEl) {
+                    listArray.forEach(function (tEl, index) {
+                        if (index < start || contained) return;
                         //Iterate keys
-                        keys.forEach(function (key, index) {
-                            if (index < start || contained) return;
+                        keys.forEach(function (key) {
                             //Try to ascertain equality, contained is equal to the expression of tEl[key] being exactly equal to object[key]'s value
                             try { contained = (tEl[key] === object[key]); contained ? $containsLastResult = index : $containsLastResult = -1; }
                             catch (_) { contained = false; $containsLastResult = -1; }
@@ -424,12 +424,12 @@
                     keys = [object];
                     //Iterate list
                     listArray.forEach(function (tEl, index) {
+                        if (index < start || contained) return;
                         //Iterate keys
                         keys.forEach(function (key) {
-                            if (index < start || contained) return;
                             //Try to ascertain equality, contained is equal to the tEl being exactly equal to the inner element
                             try { contained = (tEl === key); contained ? $containsLastResult = index : $containsLastResult = -1; }
-                            catch (_) { contained = false; $containsLastResult = -1; }                            
+                            catch (_) { contained = false; $containsLastResult = -1; }
                         });
                     });
                 }
@@ -705,7 +705,7 @@
 
         function KeyValuePair(T, U) {
             var key = T,
-                value = u;
+                value = U;
 
             // Property: Keys
             // Description: Gets the List utilized for the Storage of Keys of the Dictionary
@@ -744,7 +744,7 @@
                 var index = -1;
                 if (arguments[1] && !arguments[2]) index = keys.IndexOf(X);
                 if (!arguments[1] && !arguments[2] && index === -1) index = values.IndexOf(X);
-                return $containsLastResult = index !== -1;
+                return ($containsLastResult = index) !== -1;
             }
 
             this.ContainsKey = function (T) { return this.Contains(T, true); }
@@ -778,9 +778,11 @@
                     toRemove = -1;
                 count = count || 1;
 
-                while (count >= 0 && (toRemove = this.IndexOfKey(T)) !== -1) {
+                while (count > 0 && (toRemove = this.IndexOfKey(T)) !== -1) {
                     if (U && keys[toRemove] !== U) continue;
-                    removed.push(values.RemoveAt(toRemove));
+                    var temp = new KeyValuePair(keys[toRemove], values[toRemove]);
+                    removed.push(temp);
+                    values.RemoveAt(toRemove)
                     keys.RemoveAt(toRemove);
                     count--;
                 }
@@ -836,6 +838,8 @@
            });
 
             //return Object.freeze((function (self) { self.Keys.ForEach(function (k) { $CreateGetterSetter$Dictionary(self, k); }); return self; })(this));
+
+            CleanPrototype(this);
 
             return this;
 

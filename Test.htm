@@ -141,6 +141,47 @@
             delete outputElement;
         }
 
+        function TestDictionary() {
+
+            var myDictionary = new Dictionary(String, Number);
+
+            myDictionary.Add('Test', 0);
+
+            myDictionary.Add('Test1', 1);
+
+            myDictionary.Add('Test2', 2);
+
+            myDictionary.Add('VA', 240);
+
+            if (!System.Diagnostics.Assert(myDictionary.Count(), 4)) alert('Bug');
+
+            if (!System.Diagnostics.Assert(myDictionary['VA'], 240)) alert('Bug');
+
+            if (!System.Diagnostics.Assert(myDictionary['Test'], 0)) alert('Bug');
+
+            if (!System.Diagnostics.Assert(myDictionary['Test1'], 1)) alert('Bug');
+
+            if (!System.Diagnostics.Assert(myDictionary['Test1'], 2)) alert('Bug');
+
+            myDictionary['Test'] = myDictionary['Test1'];
+
+            if (!System.Diagnostics.Assert(myDictionary['Test'], 1)) alert('Bug');
+
+            //Should not add
+            try { myDictionary.Add({}, 'Test'); }
+            catch (_) { if (_ !== 'Only one object type is allowed in a list') alert('Bug'); }
+
+            //Should not modify
+            try {
+                myDictionary['Test'] = {};
+                if (!System.Diagnostics.Assert(myDictionary['Test'], 1)) alert('Bug');
+            }
+            catch (_) { if (_ !== 'Only one object type is allowed in a list') alert('Bug'); }
+
+            if (!System.Diagnostics.Assert(myDictionary.Count(), 4)) alert('Bug');
+
+        }
+
         function init()
         {
             try
@@ -149,6 +190,8 @@
             (function (_window) {
 
                 TestList();
+
+                TestDictionary();
 
                 TestReflection();
 
