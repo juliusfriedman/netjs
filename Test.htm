@@ -168,14 +168,14 @@
             if (!System.Diagnostics.Assert(myDictionary['Test'], 1)) alert('Bug');
 
             //Should not add
-            try { myDictionary.Add({}, 'Test'); }
+            try { myDictionary.Add({}, 'Test'); } //Should catch list exception in Dictionary and reformat
             catch (_) { if (_ !== 'Only one object type is allowed in a list') alert('Bug'); }
 
             //Should not modify
             try {
                 myDictionary['Test'] = {};
                 if (!System.Diagnostics.Assert(myDictionary['Test'], 1)) alert('Bug');
-            }
+            } //Should catch list exception in Dictionary and reformat
             catch (_) { if (_ !== 'Only one object type is allowed in a list') alert('Bug'); }
 
             if (!System.Diagnostics.Assert(myDictionary.Count(), 4)) alert('Bug');

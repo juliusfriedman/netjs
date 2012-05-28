@@ -696,7 +696,9 @@
                         var _key = dictionary.Keys.IndexOf(key);
                         if (_key === -1) throw 'Key "' + key + '" Not Found in Dictionary.Set';
                         $Validate(dictionary.Values, value);
-                        dictionary.Values[_key] = value;
+                        try { dictionary.Values[_key] = value; }
+                        catch (e) { throw e; } //Should reformat ex, All exceptions should derive from Error for better error handling
+
                     }
                 });
             }
@@ -780,8 +782,7 @@
 
                 while (count > 0 && (toRemove = this.IndexOfKey(T)) !== -1) {
                     if (U && keys[toRemove] !== U) continue;
-                    var temp = new KeyValuePair(keys[toRemove], values[toRemove]);
-                    removed.push(temp);
+                    removed.push(new KeyValuePair(keys[toRemove], values[toRemove]));
                     values.RemoveAt(toRemove)
                     keys.RemoveAt(toRemove);
                     count--;
@@ -1072,7 +1073,7 @@
         Object.defineProperty(window, 'CLR', { value: newScope });
 
         //Throws for sealed attribute
-        function $checkSealed(constructor, derivedConstructor) { if (Object.isSealed(constructor)) throw derivedConstructor.toString() + 'cannot inherit from sealed class' + constructor.toString() + '.'; };
+        function $checkSealed(constructor, derivedConstructor) { if (Object.isSealed(constructor)) throw derivedConstructor.toString() + ' cannot inherit from sealed class' + constructor.toString() + '.'; };
 
         //http://www.golimojo.com/etc/js-subclass.html
         //Modified for netjs by Julius Friedman
@@ -1129,7 +1130,6 @@
         //Memory for the pseudo type system
         $Subclass.Linker = {}
         $Subclass.Linker.Options = { ConstructorPrefix: '_ctor_', TypePrefix: '_type_', LinkSymbol: '_^_', SurrogateConstructorPostFix: 'SurrogateConstructor' };
-
 
         Export($Subclass, window, 'Subclass');
 
@@ -1211,6 +1211,21 @@
         Export(baseClass, window, 'Abstract');
         Export(baseClass, window);
 
+        //Exception Class
+        function CLRException(msg, inner) {
+            var base = Error(msg),
+                message = msg,
+                innerEx = inner;
+            Object.defineProperty(this, 'InnerException', { get: function () { return innerEx; } });
+            Object.defineProperty(this, 'Message', { get: function () { return message; } });
+            this.toString = CLRException.toString;
+            Object.freeze(this);
+        }
+        CLRException.toString = function () { return 'CLRException'; }
+        $Subclass(Error, CLRException);
+        Object.freeze(CLRException);
+        $Export(CLRException, window, 'CLRException');
+        $Export(CLRException, window, 'Exception');
 
         //SSPC - might need to move this up with Subclass
         var ClassTypeDescriptorHash = {};
@@ -1235,6 +1250,7 @@
         }
         CLRClass.toString = function () { return /*'[object */'CLRClass'/*]'*/; };
         CLRClass.cast = Function.prototype.cast;
+        //Object.freeze(CLRClass);
 
         //Export Class keyword to the window
         Export(CLRClass, window);
@@ -1277,7 +1293,7 @@
         //The CLRObject which will be the base class of all classes going forward... It will be exported under System.Object
         function CLRObject() { CLRClass.apply(this, arguments); }
         CLRObject.toString = function () { return /*'[object CLRClass */'CLRObject'/*]'*/; }
-        CLRObject = Subclass(CLRClass, CLRObject);
+        CLRObject = $Subclass(CLRObject, CLRClass);        
         Export(CLRObject, window, 'CLRObject');
 
         //The System Object
