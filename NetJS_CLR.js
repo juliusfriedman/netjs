@@ -761,9 +761,7 @@
                get: function () { return values; }
            });
 
-            keys.ForEach(function (k) { $CreateGetterSetter$Dictionary(this, k); });
-
-            return Object.freeze(this);
+            return Object.freeze((function (self) { self.Keys.ForEach(function (k) { $CreateGetterSetter$Dictionary(self, k); }); return self; })(this));
 
         }
 
