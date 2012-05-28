@@ -148,17 +148,18 @@
 
         // Method: Constructor
         // Description: Returns a new List instance based on the given parameters.
-        function List(/*type, array, capacity*/) {
+        function List(/*type, array, capacity, dontStoreInstance = false*/) {
 
             // ===============  Private Attributes  =================================================
+            /*base = new Class(IEnumerable),*/
+            var key = ++$List$Created,  // Identify each List instance with an incremented Id.
+                oType = arguments[0] || undefined,      // Used to ensure that all objects added to the list are of the same type.
+                listArray = arguments[3] || [],         // Stores all the list data.
+                capacity = arguments[2] || 10,        // Used to create getters and setters until I have worked out a different way        
+                $containsLastResult = undefined; //Storage pointer for the last result of Contains call
+            if (!arguments[4]) $List$Instances[key] = this; // Store instance with key if allowed             
+            if (capacity < listArray.length) capacity *= listArray.length; // Ensure capacity
 
-            var /*base = new Class(IEnumerable),*/
-        key = ++$List$Created,  // Identify each List instance with an incremented Id.
-        oType = arguments[0] || undefined,      // Used to ensure that all objects added to the list are of the same type.
-        listArray = arguments[3] || [],         // Stores all the list data.
-        capacity = arguments[2] || 10,        // Used to create getters and setters until I have worked out a different way        
-        $containsLastResult = undefined; //Storage pointer for the last result of Contains call
-            $List$Instances[key] = this; // Store instance with key                
 
             // ===============  Public Methods  ======================================================
 
@@ -685,9 +686,9 @@
         //The Dictionary Type
         function Dictionary(T, U) {
             if (!T || !U) return;
-            var keys = new List(T),
-                values = new List(U),
-                $containsLastResult;
+            var keys = new List(T, [], 10, true),
+                values = new List(U, [], 10, true),
+                $containsLastResult = -1;
 
             this.Contains = function (X/*, onlyKeys, onlyValues*/) {
                 var index = -1;
@@ -706,6 +707,10 @@
 
             this.IndexOfValue = function (U) { this.ContainsValue(U); return $containsLastResult; }
 
+            this.KeyOf = function (U) { return this.ContainsValue(U) ? keys[$containsLastResult] : $Default(U); }
+
+            this.ValueOf = function (T) { return this.ContainsKey(T) ? values[$containsLastResult] : $Default(U); }
+
             this.Add = function (T, U) {
                 if (!T) return;
                 if (this.ContainsKey(T)) throw 'Key : "' + T + '" Already Added At Dictionary.Add';
@@ -722,8 +727,9 @@
                 count = count || 1;
 
                 while (count >= 0 && (toRemove = this.IndexOfKey(T)) !== -1) {
-                    if (U && keys[toRemove] !== U) break;
-                    else removed.push(values.RemoveAt(toRemove));
+                    if (U && keys[toRemove] !== U) continue;
+                    removed.push(values.RemoveAt(toRemove));
+                    keys.RemoveAt(toRemove);
                     count--;
                 }
 
@@ -1642,10 +1648,6 @@
         //Possibly should contain ParameterInfo for returned arguments
         Reflection.getArguments = function (func) { return new ParameterInfo(func); }
 
-        Export(Reflection, window, 'Reflection');
-
-        System.Reflection = Reflection;
-
         //Function.prototype.getArguments = function () { return Reflection.getArguments(this); }
 
         //Function.prototype.getExpectedReturnType = function () { /*ToDo*/ }
@@ -1653,6 +1655,10 @@
         Object.seal(Reflection);
 
         Object.freeze(Reflection);
+
+        Export(Reflection, window, 'Reflection');
+
+        System.Reflection = Reflection;
 
         //MooTool 1.4.5                       
 
@@ -1715,7 +1721,7 @@
         Have a before, and after calls
         */
         Function.prototype.extend = function (key, value, overriteExisting, callExisting, beforeCall, afterCall) {
-            var overriteExisting = arguments[2] || callExisting,
+            var overriteExisting = overriteExisting || callExisting,
                     impliment = arguments.caller === Function.prototype.impliment;
             if (arguments.length && arguments.length > 2 && overriteExisting || callExisting || beforeCall || afterCall) {
                 if (this[key] && !overriteExisting) return;
@@ -1763,7 +1769,7 @@
             /*<ltIE8>*/
             if (!item.hasOwnProperty) return false;
             /*</ltIE8>*/
-            return item instanceof object;
+            return item instanceof object || GetTypeName(item) === GetTypeName(Object);
         }, window, 'instanceOf');
 
         // From
