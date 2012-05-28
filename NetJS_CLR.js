@@ -774,12 +774,14 @@
 
             this.ValueOf = function (T) { return this.ContainsKey(T) ? values[$containsLastResult] : null; }
 
+            this.TryGetValue = this.ValueOf;
+
             this.Add = function (T, U) {
                 if (!T) return;
                 if (this.ContainsKey(T)) throw 'Key : "' + T + '" Already Added At Dictionary.Add';
                 keys.Add(T);
                 values.Add(U);
-
+                //Create the getter and the setter for the key
                 $CreateGetterSetter$Dictionary(this, T);
             }
 
@@ -1090,15 +1092,17 @@
         //Object.prototype.is = Object.is;        
 
         //For construct 
-        function $For(start, end, body) { for (; start < end; ++start) try { body(i); } catch (_) { break; } }
+        function $For(start, end, iter, body) { iter = iter || $For.Incremenet; for (; start < end; iter(start)) try { body(i); } catch (_) { break; } }
+        $For.Increment = function (w, by) { return by ? w += by : ++w; }
+        $For.Decrement = function (w, by) { return by ? w -= by : --w; }
         $Export($For, window, 'For');
 
         //While construct
         function $While(condition, body) { while (condition) try { body(); } catch (_) { break; } }
         $Export($While, window, 'While');
 
-        //Forever construct , (while(true))
-        function $Forever(body) { return $For(-Infinity, Infinity, body); }
+        //Forever construct , (for(;;))
+        function $Forever(body) { return $For(-Infinity, Infinity, $For.Increment, body); }
         $Export($Forever, window, 'Forever');
 
         //ForEach with start and end support
