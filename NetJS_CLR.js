@@ -999,6 +999,7 @@
         }; //0 = function, 1 = name and  so on => {, [native / code], }
 
         //Allows a constructor to determine if new was called
+        //Also needs to check $prototyping until I can get the Class semantics the way I want
         function $IsNewObject(object) { return ((object.toString() === '[object Object]') || (new Object() === object)); }
 
         //Export $GetTypeName to the window as GetTypeName
@@ -1086,7 +1087,7 @@
 
             var inheritMembers = arguments[2] || false,
                 inheritPrototype = arguments[3] || false,
-                linkedName = $Subclass.Linker.TypePrefix + derivedConstructor.toString() + $Subclass.Linker.LinkSymbol + constructor.toString(),
+                linkedName = $Subclass.Linker.Options.TypePrefix + derivedConstructor.toString() + $Subclass.Linker.Options.LinkSymbol + constructor.toString(),
                 isInstance = $IsNewObject(constructor);
 
             if (!($Subclass.Linker[linkedName] && $Subclass.Linker[linkedName].constructor === constructor)) {
@@ -1094,7 +1095,7 @@
                 //Note weather or not the derivedConstructor inherits the members of the base
                 derivedConstructor.$inheritsMembers = inheritMembers;
 
-                var surrogateConstructor = $Subclass.Linker[$Subclass.Linker.ConstructorPrefix + linkedName + $Subclass.Linker.LinkSymbol + $Subclass.Linker.SurrogateConstructorPostFix] = function () { return constructor.apply ? constructor.apply(derivedConstructor) : undefined; }
+                var surrogateConstructor = $Subclass.Linker[$Subclass.Linker.Options.ConstructorPrefix + linkedName + $Subclass.Linker.Options.LinkSymbol + $Subclass.Linker.Options.SurrogateConstructorPostFix] = function () { return constructor.apply ? constructor.apply(derivedConstructor) : undefined; }
 
                 //Todo
                 //Check for Disposable and implement unload?
@@ -1126,7 +1127,9 @@
         }
 
         //Memory for the pseudo type system
-        $Subclass.Linker = { ConstructorPrefix: '_ctor_', TypePrefix: '_type_', LinkSymbol: '_^_', SurrogateConstructorPostFix: 'SurrogateConstructor' };
+        $Subclass.Linker = {}
+        $Subclass.Linker.Options = { ConstructorPrefix: '_ctor_', TypePrefix: '_type_', LinkSymbol: '_^_', SurrogateConstructorPostFix: 'SurrogateConstructor' };
+
 
         Export($Subclass, window, 'Subclass');
 
@@ -1135,7 +1138,8 @@
         window.addEventListener('unload', function () {
             //For each type in the linker
             for (var t in $Subclass.Linker) {
-                var _t = t.split($Subclass.Linker.LinkSymbol);
+                if (t === 'Options') continue;
+                var _t = t.split($Subclass.Linker.Options.LinkSymbol);
                 _t.forEach(function (name, index) {
                     //If there is a type in the linker with the name t
                     if ($Subclass.Linker.hasOwnProperty(t)) {
@@ -1162,6 +1166,7 @@
                     }
                 });
             }
+            delete $Subclass.Linker.Options;
             delete $Subclass.Linker;
             $Subclass = null;
 
