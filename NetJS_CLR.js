@@ -632,18 +632,22 @@
         List.toString = function () { return /*'[object Class */'List'/*]'*/; };
 
         //.Net JavaScript (this should be a new scope)
-        var newScope = this,
-        args = arguments,
-        callee = arguments.callee,
-        caller = arguments.caller,
-        CLRItself = {
-            version: {
-                major: 0.1,
-                minor: 0.0001
-            },
-            valueOf: function () { return newScope; },
-            toString: function () { return 'CLR ' + [CLRItself.version.major, CLRItself.version.minor].join('.'); }
-        };
+
+        //Scope the window and Function variables
+        var window = window || extern,
+            Function = window.Function = window$Function = window.Function,
+            newScope = this,
+            args = arguments,
+            callee = arguments.callee,
+            caller = arguments.caller,
+            CLRItself = {
+                version: {
+                    major: 0.1,
+                    minor: 0.0001
+                },
+                valueOf: function () { return newScope; },
+                toString: function () { return 'CLR ' + [CLRItself.version.major, CLRItself.version.minor].join('.'); }
+            };
 
         newScope.valueOf = CLRItself.valueOf;
         newScope.toString = CLRItself.toString;
@@ -705,7 +709,8 @@
             catch (_) { }
         }
 
-        function KeyValuePair(T, U) {
+        //Key Value Pair
+        function KeyValuePair(T, U) { //Determine if should store dictionary parent as option
             var key = T,
                 value = U;
 
@@ -715,7 +720,6 @@
            {
                // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
                enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
-               configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
                get: function () { return key; }
            });
 
@@ -725,19 +729,26 @@
            {
                // writable: false, // True if and only if the value associated with the property may be changed. (data descriptors only). Defaults to false.
                enumerable: true, // true if and only if this property shows up during enumeration of the properties on the corresponding object. Defaults to false.
-               configurable: true, // true if and only if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object. Defaults to false.
                get: function () { return value; }
            });
 
-            Object.freeze(this);
+            this.toString = KeyValuePair.toString;
+
+            this.ToString = function () { return '[ ' + key + ' ,' + value + ' ]' };
+
+            this.ToObject = function () { return { Key: key, Value: value }; }
+
+            return Object.freeze(this);
 
         }
+
+        KeyValuePair.toString = function () { return /*'[object CLRClass */'KeyValuePair'/*]'*/; }
 
         Object.freeze(KeyValuePair);
 
         //The Dictionary Type
         function Dictionary(T, U) {
-            if (!T || !U) return;
+            if ($IsNotType(T) || $IsNotType(U)) throw 'Error, Dictionary must takes two types';
             var keys = new List(T, [], 10, true),
                 values = new List(U, [], 10, true),
                 $containsLastResult = -1;
@@ -956,9 +967,6 @@
         //The abstract class constructor
         function $abstractConstructor(constructor) { throw 'Cannot create an instance of an abstract class without a derived class! Type = ' + '[' + (constructor ? JSON.stringify(constructor) : 'abstract') + ', ' + $GetTypeName(constructor || baseClass) + ']'; }
 
-        //Scope the Function
-        var Function = this.Function = window$Function = window.Function;
-
         //Backup GarbadgeCollector
         var _CollectGarbadge = typeof CollectGarbadge === 'undefined' ? new Function('return delete this') : CollectGarbadge;
 
@@ -1019,23 +1027,47 @@
             }
             catch (_) { return false; }
         }
+        //Export $Is to the window as Is
         Export($Is, window, 'Is');
 
+        function $Not(_) { return !_; }
+        Export($Not, window, 'Not');
+        function $And(_, __) { return _ & __; }
+        Export($And, window, 'And');
+        function $Or(_, __) { return _ | __; }
+        Export($Or, window, 'Or');
+        function $Xor(_, __) { return _ ^ __; }
+        Export($Xor, window, 'Xor');
+        function $B(_) { return ~b; }
+        Export($B, window, 'B');
+        function $StringToInt(s) { return $B(s); }
+        Export($StringToInt, window, 'StringToInt');
+
+
         //IsNot function
-        function $IsNot(what, type) { return !$Is(wha, type); }
+        function $IsNot(what, type) { return !$Is(what, type); }
         Export($IsNot, window, 'IsNot');
 
         function $IsNull(what) { return what === null; };
         Export($IsNull, window, 'IsNull');
 
+        function $IsNotNull(what) { !$IsNull(what); };
+        Export($IsNotNull, window, 'IsNotNull');
+
         function $IsUndefined(what) { return typeof what === 'undefined' || what === undefined; };
         Export($IsUndefined, window, 'IsUndefined');
 
-        function $IsNullOrUndefined(what) { debugger; return !$IsNull(what) ? false : $IsUndefined(what); }
-        Export($IsUndefined, window, 'IsNullOrUndefined');
+        function $IsNullOrUndefined(what) { return $IsNull(what) || $IsUndefined(what); }
+        Export($IsNullOrUndefined, window, 'IsNullOrUndefined');
 
-        //Export $Is to the window as Is
-        Export($Is, window, 'Is');
+        function $IsNotNullOrUndefined(what) { return !$IsNullOrUndefined(what); }
+        Export($IsNotNullOrUndefined, window, 'IsNotNullOrUndefined');
+
+        function $IsType(t) { if (t in extern) return true; t = $GetTypeName(t); if (t in extern) return true; return $TryCatch(function () { return $IsNotNullOrUndefined(Function('t', 'return delete new t()', t)); }, Function('return false')) }
+        Export($IsType, window, 'IsType');
+
+        function $IsNotType(t) { return !$IsType(t); }
+        Export($IsNotType, window, 'IsNotType');
 
         //As
         function $As(what, type) { try { return new type(what); } catch (_) { return $Cast(what, type); } }
@@ -1058,8 +1090,12 @@
         //Object.prototype.is = Object.is;        
 
         //For construct 
-        function $For(start, end, body) { for (; start < end; ++start) body(i); }
+        function $For(start, end, body) { for (; start < end; ++start) try { body(i); } catch (_) { break; } }
         $Export($For, window, 'For');
+
+        //While construct
+        function $While(condition, body) { while (condition) try { body(); } catch (_) { break; } }
+        $Export($While, window, 'While');
 
         //Forever construct , (while(true))
         function $Forever(body) { return $For(-Infinity, Infinity, body); }
@@ -1068,6 +1104,14 @@
         //ForEach with start and end support
         function $ArrayForEach(array, start, end, body, bind) { array.forEach(function (_, i) { if (i < start || i > end) return; body(_, i); }, bind || this); }
         $Export($ArrayForEach, window, 'ArrayForEach');
+
+        //SEH
+        function $Try(toDo) { try { return toDo(); } catch (e) { return e; } }
+        $Export($Try, window, 'Try');
+        function $TryCatch(toDo, onError) { var _ = $Try(toDo); if (_ instanceof Error || _ instanceof CLRException) return onError(); }
+        $Export($TryCatch, window, 'TryCatch');
+        function $TryCatchFinally(toDo, onError, finalizer) { try { $TryCatch(toDo, onError); } finally { finalizer(); } }
+        $Export($TryCatchFinally, window, 'TryCatchFinally');
 
         //Expose the CLR as readonly
         Object.defineProperty(window, 'CLR', { value: newScope });
@@ -1293,7 +1337,7 @@
         //The CLRObject which will be the base class of all classes going forward... It will be exported under System.Object
         function CLRObject() { CLRClass.apply(this, arguments); }
         CLRObject.toString = function () { return /*'[object CLRClass */'CLRObject'/*]'*/; }
-        CLRObject = $Subclass(CLRObject, CLRClass);        
+        CLRObject = $Subclass(CLRObject, CLRClass);
         Export(CLRObject, window, 'CLRObject');
 
         //The System Object
@@ -1741,9 +1785,13 @@
 
             this.valueOf = function () { return defaultValue; }
 
+            return Object.freeze(this);
+
         }
 
         ParameterInfo.toString = function () { return /*'[object Class */'ParameterInfo'/*]'*/; }
+
+        Object.freeze(ParameterInfo);
 
         //Possibly should utilize RegEx...
         //Possibly should find hidden arguments
@@ -1755,6 +1803,15 @@
         //Function.prototype.getArguments = function () { return Reflection.getArguments(this); }
 
         //Function.prototype.getExpectedReturnType = function () { /*ToDo*/ }
+
+        Reflection.getMethods = function (funcOrType) {
+            if ($IsNullOrUndefined(funcOrType)) return;
+            var results = [];
+            for (var p in funcOrType)
+                if (funcOrType.hasOwnProperty(p) && funcOrType[p] instanceof Function)
+                    results.push(funcOrType[p]);
+            return results;
+        }
 
         Object.seal(Reflection);
 
@@ -2492,7 +2549,7 @@
             //Adds a property to an object with getter, setter and descriptor support
             function defineProperty(object, name, descriptor) {
                 if (!object || !name) return;
-                if (!IsNullOrUndefined(descriptor.value) && !IsNullOrUndefined(descriptor.get)) throw 'Descriptor cannot contain a value and a getter';
+                if ($IsNotNullOrUndefined(descriptor.value) && $IsNotNullOrUndefined(descriptor.get)) throw 'Descriptor cannot contain a value and a getter';
                 descriptor = {
                     enumerable: descriptor.enumerable || false,
                     writeable: descriptor.writeable || false,
