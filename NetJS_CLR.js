@@ -1112,9 +1112,9 @@
         //SEH
         function $Try(toDo) { try { return toDo(); } catch (e) { return e; } }
         $Export($Try, window, 'Try');
-        function $TryCatch(toDo, onError) { var _ = $Try(toDo); if (_ instanceof Error || _ instanceof CLRException) return onError(); }
+        function $TryCatch(toDo, onError) { var _ = $Try(toDo); if (_ instanceof Error || _ instanceof CLRException) return onError(_); return _; }
         $Export($TryCatch, window, 'TryCatch');
-        function $TryCatchFinally(toDo, onError, finalizer) { try { $TryCatch(toDo, onError); } finally { finalizer(); } }
+        function $TryCatchFinally(toDo, onError, finalizer) { try { return $TryCatch(toDo, onError); } finally { finalizer(); } }
         $Export($TryCatchFinally, window, 'TryCatchFinally');
 
         //Expose the CLR as readonly
@@ -1716,7 +1716,7 @@
             If it is then return Object.defineProperty(arguments);
             It would look like this:
             */
-            // /* readonly Attribute[] Attributes = */ (function(ParameterInfo.prototype, 'Attributes', {
+            // (/* readonly Attribute[] Attributes = */ function(ParameterInfo.prototype, 'Attributes', {
             //     get: function () { return attributes; }
             // }){}();
 
@@ -1785,7 +1785,7 @@
                 get: function () { }
             });
 
-            this.toString = function () { return name || position + '_' + parameterType; }
+            this.toString = function () { return parameterType + '_' + name || position; }
 
             this.valueOf = function () { return defaultValue; }
 
@@ -1806,8 +1806,9 @@
 
         //Function.prototype.getArguments = function () { return Reflection.getArguments(this); }
 
-        //Function.prototype.getExpectedReturnType = function () { /*ToDo*/ }
+        //Reflection.getExpectedReturnType = function () { /*ToDo*/ }
 
+        //Needs MethodInfo
         Reflection.getMethods = function (funcOrType) {
             if ($IsNullOrUndefined(funcOrType)) return;
             var results = [];
@@ -1824,6 +1825,8 @@
         Export(Reflection, window, 'Reflection');
 
         System.Reflection = Reflection;
+
+        // =========================
 
         //MooTool 1.4.5                       
 
