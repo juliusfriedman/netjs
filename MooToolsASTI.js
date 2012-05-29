@@ -33,9 +33,8 @@
 
     String.implement({
         isNullOrEmpty: function () {
-            try {
-                return nullOrUndefined[this.toLowerCase().clean()];
-            } catch (E) { return true; }
+            try { return nullOrUndefined[this.toLowerCase().clean()]; }
+            catch (E) { return true; }
         },
         isNullOrEmptyOrEqual: function (theOtherString, options) {
             options = options || {};
@@ -129,6 +128,7 @@
     /* *******************************
     * Authentication Required Mutator
     **********************************
+    * Implicitly calls TrackInstances
     * If the Application.currentUser is undefined or null then the class will not instantiate
     ******************************** */
 
@@ -139,13 +139,8 @@
         var oldInit = self.prototype.initialize;
         var klass = self;
         if (!Application.currentUser || Application.currentUser === null || !Application.currentUser.loggedIn) klass.prototype.initialize = Function.from();
-        // overwrite initialize method
-        else klass.prototype.initialize = function () {
-            (klass.instances = klass.instances || []).push(this);
-            oldInit.apply(this, arguments);
-        };
-        //Add an event to the window to clean up the instances on unload
-        w.addEvent('unload', $disposer.pass(klass));
+        //Call TrackInstances
+        Class.Mutators.TrackInstances.apply(self, [allow]);
     };
 
 
