@@ -26,8 +26,9 @@
         //              var selList = $Select(this,"make == 'Honda'").
         //              var anotherList = $Select(this,function(){ return this.make === 'Honda' });
         //              var yetAnotherList = $Select(this,function(c){ return c.make === 'Honda' });
-        //              var  anotherStringForm = myList.Where("(c) => c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default");
-        //              var  yetAnotherForm = myList.Where(function (c) { return c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default });
+        //              var  anotherStringForm = myList.Where("(c) => c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default"); //Forcing default for each entry which does not match without calling Default
+        //              var  yetAnotherForm = myList.Where(function (c) { return c.make == 'Nissan' ? new Car('Acura', 'TL') : Car.$default }); //Forcing default for each entry which does not match without calling Default
+        //              var finalList = myList.Where(function () { return make == 'Honda' }).OrderByDescending("model").Distinct();
         function $Select(list, query) {
             if (!query) return this;
             var bind = (query instanceof Function) && query.toString().indexOf('this') !== -1,
@@ -38,17 +39,15 @@
             list.array.forEach(function (tEl) {
                 var result = undefined;
                 try {
-                    result = !lambda && bind ? //Bind the query if there is no lambda
-                    (query.bind(tEl)()) :
-                        !lambda && pass ? (query(tEl)) : //Pass the element to the query if there is no lambda
-                            lambda ? $ProcessLambda(query).bind(tEl)(tEl) : //Process the lambda if present
-                                (new Function('_', 'with(_) return (' + query + ')')(tEl))(); //Fallback to with method
+                    result = !lambda && bind ? //If there is no lambda and there is a bind
+                        (query.bind(tEl)()) : //Bind the query
+                            !lambda && pass ? (query(tEl)) : //Oterhwise Pass the element to the query if there is no lambda
+                                lambda ? $ProcessLambda(query).bind(tEl)(tEl) : //Otherwise Process the lambda if present
+                                    (new Function('_', 'with(_) return (' + query + ')')(tEl)); //By falling back to with method, this results in a function expression when used with an unquantified scope to achieve the LINQ Syntax compatibility
                 }
-                catch (_) {
-                    try { result = (new Function('_', 'with(_) return (' + query + ')')(tEl)) }
-                    catch (__) { result = false; }
-                }
-                //If there is a result add it by determining if there was a lambda or the result is an instance of the list type.
+                catch (_) { result = false; }
+                //If there is a result add it by determining if there was a lambda left and evaluating it or the result of the previous evaluation
+                if (result instanceof Function) result = result();
                 if (result) selectList.Add(tEl);
             });
             return selectList;
@@ -58,7 +57,7 @@
         // Description:  Returns the default value for the list
         function $Default(list) {
             try { return '$default' in list.$type ? list.$type.$default : new list.$type(); } // Try to return the default of the type stored in the List or the result of a newly created type of the List type.
-            catch (_) { return null; } // Return null if the default value cannot be found for the or type cannot be created.
+            catch (_) { return null; } // Return null if the default value cannot be found or the or type cannot be created.
         }
 
 
@@ -67,11 +66,7 @@
         //               the Javascript sort function to sort the list by a given property name.
         // Usage Example:
         //              var sortedList = listArray.sort($GenericSort('model'));
-        function $GenericSort(property) {
-            return function (a, b) {
-                return (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
-            }
-        }
+        function $GenericSort(property) { return function (a, b) { return (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0; } }
 
         // ===============  Static Members  =================================================
 
@@ -619,7 +614,6 @@
             }
 
             //Cleanup instance prototype
-            //for (var p in this) if (!this.hasOwnProperty(p)) delete this.p;
             CleanPrototype(this);
 
             //Add event for destructor in executed closure
@@ -2470,124 +2464,123 @@
             Object.defineProperty = undefined;
         }
 
-        //Polyfill for freeze
-        if (!Object.freeze) {
+        //Memory for frozen objects
+        var $freezer = {}
 
-            //Memory for frozen objects
-            var $freezer = {}
+        //Puts the ice on
+        function ice(object) { $freezer[object] = true; if (Object$freeze) Object$freeze(object); }
 
-            //Puts the ice on
-            function ice(object) { $freezer[object] = true; }
+        //Takes the ice off
+        function thaw(object) { delete $freezer[object]; }
 
-            //Takes the ice off
-            function thaw(object) { delete $freezer[object]; }
+        //Freeze the object
+        function freeze(object) { return ice(object); }
 
-            //Freeze the object
-            function freeze(object) { return ice(object); }
+        function isFrozen(object) { return $freezer[object] === true; }
 
-            function isFrozen(object) { return $freezer[object] === true; }
+        var Object$freeze = Object.freeze;
 
-            //Export
-            Object.freeze = freeze;
-            Object.isFrozen = isFrozen;
-        }
+        //Export
+        Object.freeze = freeze;
+        Object.isFrozen = isFrozen;
 
-        //Polyfill for seal
-        if (!Object.seal) {
+        //Memory for sealed objects
+        var $sealed = {};
 
-            //Memory for sealed objects
-            var $sealed = {};
+        function seal(object) { $sealed[object] = true; if (Object$Sealed) Object$Sealed(Object); }
 
-            function seal(object) { $sealed[object] = true; }
+        function isSealed(object) { return $sealed[object] ? true : false; }
 
-            function isSealed(object) { return $sealed[object] ? true : false; }
+        //Export
+        var Object$Sealed = Object.seal;
+        Object.seal = seal;
+        Object.isSealed = isSealed;
 
-            //Export
-            Object.seal = seal;
-            Object.isSealed = isSealed;
-        }
+        var descriptorHash = {};
 
-        //Polyfill for defineProperty
-        if (IsNullOrUndefined(Object.defineProperty)) {
-            var descriptorHash = {};
-
-            function legacyGet(object, property, descriptor) {
-                return descriptor.value ?
+        function legacyGet(object, property, descriptor) {
+            return descriptor.value ?
                     descriptor.value.valueOf() :
                         descriptor.get ?
                             descriptor.get.bind(object)() : object[property];
-            }
-
-            $Export(legacyGet, window, 'legacyGet');
-
-            function legacySet(object, property, descriptor, value) {
-                if (!descriptor.writeable || (descriptor.enforceType && !(value instanceof descriptor.value))) return;
-                object[property] = value;
-            }
-
-            $Export(legacyGet, window, 'legacySet')
-
-            function legacyIterate(object) {
-                ///TODO
-                for (var m in object) {
-                    //Kinda Need LINQ Yield here
-                }
-            }
-
-            function setDescriptor(object, property, newDescriptor) {
-                if (!object || !property) return;
-                var existing = descriptorHash[object][property];
-                if (existing && !existing.configurable) throw 'Cannot modify the existing descriptor for the non-configurable property: "' + property + '"';
-                defineProperty(object, name, newDescriptor || {
-                    enumerable: newDescriptor.enumerable || false,
-                    writeable: newDescriptor.writeable || false,
-                    configurable: descriptor.configurable || false,
-                    value: newDescriptor.value || null,
-                    enforceType: descriptor.enforceType || false,
-                    get: newDescriptor.get || undefined,
-                    set: newDescriptor.set || undefined
-                });
-                //Store last version
-                descriptorHash[object][property]._previous = existing;
-            }
-
-            $Export(setDescriptor, window, 'setDescriptor');
-
-
-            //Adds a property to an object with getter, setter and descriptor support
-            function defineProperty(object, name, descriptor) {
-                if (!object || !name) return;
-                if ($IsNotNullOrUndefined(descriptor.value) && $IsNotNullOrUndefined(descriptor.get)) throw 'Descriptor cannot contain a value and a getter';
-                descriptor = {
-                    enumerable: descriptor.enumerable || false,
-                    writeable: descriptor.writeable || false,
-                    configurable: descriptor.configurable || false,
-                    value: descriptor.value || null,
-                    enforceType: descriptor.enforceType || false,
-                    get: descriptor.get ? descriptor.get : function () { return legacyGet(object, name, descriptor); } .bind(object),
-                    set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(object, name, descriptor, value); } .bind(object) : function () { }
-                };
-
-                //Create getter / setter - might need to do a call scan to determine if this is an assignment
-                var getterSetter = function (value) { return (IsNullOrUndefined(value) || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
-
-                //Create value proxy object
-                var valueProxy = {
-                    valueOf: function () { return getterSetter(arguments); },
-                    toString: function () { return this.valueOf().toString(); }
-                }
-
-                //Store on object if enumerable
-                if (descriptor.enumerable) object[name] = valueProxy;
-
-                //Store in descriptor hash
-                descriptorHash[object] = {};
-                descriptorHash[object][name] = descriptor;
-            }
-
-            //Augment Object
-            Object.defineProperty = defineProperty;
         }
+
+        $Export(legacyGet, window, 'legacyGet');
+
+        function legacySet(object, property, descriptor, value) {
+            if (!descriptor.writeable || (descriptor.enforceType && !(value instanceof descriptor.value))) return;
+            object[property] = value;
+        }
+
+        $Export(legacyGet, window, 'legacySet')
+
+        function legacyIterate(object) {
+            ///TODO
+            for (var m in object) {
+                //Kinda Need LINQ Yield here
+            }
+        }
+
+        function setDescriptor(object, property, newDescriptor) {
+            if (!object || !property) return;
+            var existing = descriptorHash[object][property];
+            if (existing && !existing.configurable) throw 'Cannot modify the existing descriptor for the non-configurable property: "' + property + '"';
+            defineProperty(object, name, newDescriptor || {
+                enumerable: newDescriptor.enumerable || false,
+                writeable: newDescriptor.writeable || false,
+                configurable: descriptor.configurable || false,
+                value: newDescriptor.value || null,
+                enforceType: descriptor.enforceType || false,
+                get: newDescriptor.get || undefined,
+                set: newDescriptor.set || undefined
+            });
+            //Store last version
+            descriptorHash[object][property]._previous = existing;
+        }
+
+        $Export(setDescriptor, window, 'setDescriptor');
+
+
+        //Adds a property to an object with getter, setter and descriptor support
+        function defineProperty(object, name, descriptor) {
+            if (!object || !name) return;
+            if ($IsNotNullOrUndefined(descriptor.value) && $IsNotNullOrUndefined(descriptor.get)) throw 'Descriptor cannot contain a value and a getter';
+            var ecma_descriptor = {
+                enumerable: descriptor.enumerable || false,
+                writeable: descriptor.writeable || false,
+                configurable: descriptor.configurable || false,
+                value: descriptor.value || null,
+                //enforceType: descriptor.enforceType || false,
+                get: descriptor.get ? descriptor.get : function () { return legacyGet(object, name, descriptor); } .bind(object),
+                set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(object, name, descriptor, value); } .bind(object) : function () { }
+            };
+
+            if (ecma_descriptor.value && ecma_descriptor.get && $IsNotNull(ecma_descriptor.value)) { throw TypeError('Properties cannot have both set accessor and value'); }
+            else delete ecma_descriptor.value;
+
+            //Create getter / setter - might need to do a call scan to determine if this is an assignment
+            var getterSetter = function (value) { return (IsNullOrUndefined(value) || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
+
+            //Create value proxy object
+            var valueProxy = {
+                valueOf: function () { return getterSetter(arguments); },
+                toString: function () { return this.valueOf().toString(); }
+            }
+
+            //Store on object if enumerable
+            if (descriptor.enumerable) object[name] = valueProxy;
+
+            //Store in descriptor hash
+            descriptorHash[object] = {};
+            descriptorHash[object][name] = descriptor;
+
+            //Call the native implementation if defined
+            if (Object$defineProperty) Object$defineProperty(object, name, ecma_descriptor);
+        }
+
+        var Object$defineProperty = Object.defineProperty;
+        //Augment Object
+        Object.defineProperty = defineProperty;
 
 
 
