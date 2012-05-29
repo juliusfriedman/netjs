@@ -2,6 +2,191 @@
 
     return (typeof CollectGarbadge === 'undefined' && Boolean(REBUILD_CLR) === true) ? undefined : new (function () {
 
+        //.Net JavaScript (this should be a new scope)
+
+        // Method: $Export 
+        // Description: The $Export function takes the given what and puts it where (optionally as 'as')
+        function $Export(what, where/*, as*/) {
+            if (!what && !where) return;
+            var as = arguments[2] || what;
+            $Export.exported[as] = where;
+            where[as] = what;
+        }
+
+        //Memory for exported members
+        $Export.exported = {};
+
+        //Removes the given object from the exports if it was exported
+        $Export.remove = function (what) {
+            //Enumerate exported members
+            for (var t in $Export.exported) // t is type or typeName
+            //If there is a member with the same type name as what
+                if ($Export.exported.hasOwnProperty(t)) {
+                    //Express the typename to get where it was exported to and delete it as well as the $Export entry
+                    delete ($Export.exported[t])[t]
+                    delete $Export.exported[t];
+                }
+        }
+
+        //Scope the window and Function variables
+        var window = window || extern,
+            Function = window.Function = window$Function = window.Function,
+            newScope = this,
+            args = arguments,
+            callee = arguments.callee,
+            caller = arguments.caller,
+            CLRItself = {
+                version: {
+                    major: 0.1,
+                    minor: 0.0001
+                },
+                valueOf: function () { return newScope; },
+                toString: function () { return 'CLR ' + [CLRItself.version.major, CLRItself.version.minor].join('.'); }
+            };
+
+        newScope.valueOf = CLRItself.valueOf;
+        newScope.toString = CLRItself.toString;
+        newScope.version = CLRItself.version;
+
+        //Export $Export to the window as export
+        $Export($Export, window, 'Export');
+
+        //Legacy
+        if ((navigator.appVersion.indexOf('7.') !== -1 || navigator.appVersion.indexOf('8.') !== -1 && navigator.appVersion.indexOf('MSIE') !== -1)) {
+            //Backup prototype
+            var Object$prototyoe = Object.prototype;
+            //Set the prototype to the Element Constructor
+            Object.prototype = document.createElement('object').prototype;
+            //Backup defineProperty cause IE8 has it but only is valid for Elements.
+            var Object$defineProperty = Object.defineProperty;
+            //Undefine defineProperty
+            Object.defineProperty = undefined;
+
+            Function.prototype.bind = function (c, b) { var a = this; if (b != null) { b = Array.from(b) } return function () { return a.apply(c, b || arguments) } }
+            Array.prototype.forEach = function (i) { return z.apply(i, n.call(arguments, 1)) };
+
+            window.addEventListener = window.attachEvent
+        }
+
+        //Memory for frozen objects
+        var $freezer = {}
+
+        //Puts the ice on
+        function ice(object) { $freezer[object] = true; if (Object$freeze) Object$freeze(object); }
+
+        //Takes the ice off
+        function thaw(object) { delete $freezer[object]; }
+
+        //Freeze the object
+        function freeze(object) { return ice(object); }
+
+        function isFrozen(object) { return $freezer[object] === true; }
+
+        var Object$freeze = Object.freeze;
+
+        //Export
+        Object.freeze = freeze;
+        Object.isFrozen = isFrozen;
+
+        //Memory for sealed objects
+        var $sealed = {};
+
+        //Export
+        var Object$seal = Object.seal, Object$isSealed = Object.isSealed;
+        Object.seal = function seal(object) { $sealed[object] = true; if (Object$isSealed) Object$isSealed(Object); }
+        Object.isSealed = function isSealed(object) { return $sealed[object] ? true : Object$isSealed ? Object$isSealed(object) : false; }
+
+        var descriptorHash = {};
+
+        function $legacyGet(object, property, descriptor) {
+            return descriptor.value ?
+                    descriptor.value.valueOf() :
+                        descriptor.get ?
+                            descriptor.get.bind(object)() : object[property];
+        }
+
+        $Export($legacyGet, window, 'legacyGet');
+
+        function $legacySet(object, property, descriptor, value) {
+            if (!descriptor.writeable || (descriptor.enforceType && !(value instanceof descriptor.value))) return;
+            if (descriptor.set) descriptor.set(value);
+            else if (descriptor.value) descriptor.value = descriptorHash[object][property]['value'] = value;
+        }
+
+        $Export($legacySet, window, 'legacySet')
+
+        function legacyIterate(object) {
+            ///TODO
+            for (var m in object) {
+                //Kinda Need LINQ Yield here, could also use this on the list to reverse faster
+            }
+        }
+
+        function setDescriptor(object, property, newDescriptor) {
+            if (!object || !property) return;
+            var existing = descriptorHash[object][property];
+            if (existing && !existing.configurable) throw 'Cannot modify the existing descriptor for the non-configurable property: "' + property + '"';
+            Object.defineProperty(object, name, newDescriptor || {
+                enumerable: newDescriptor.enumerable || false,
+                writeable: newDescriptor.writeable || false,
+                configurable: descriptor.configurable || false,
+                value: newDescriptor.value || null,
+                enforceType: descriptor.enforceType || false,
+                get: newDescriptor.get || undefined,
+                set: newDescriptor.set || undefined
+            });
+            //Store last version
+            descriptorHash[object][property]._previous = existing;
+        }
+
+        $Export(setDescriptor, window, 'setDescriptor');
+
+
+        var Object$defineProperty = Object.defineProperty;
+        //Adds a property to an object with getter, setter and descriptor support
+        Object.defineProperty = function defineProperty(object, name, descriptor) {
+            if (!object || !name) return;
+            if ($IsNotNullOrUndefined(descriptor.value) && $IsNotNullOrUndefined(descriptor.get)) throw 'Descriptor cannot contain a value and a getter';
+            var ecma_descriptor = {
+                enumerable: descriptor.enumerable || false,
+                writeable: descriptor.writeable || false,
+                configurable: descriptor.configurable || false,
+                value: descriptor.value || null,
+                //enforceType: descriptor.enforceType || false, //Will be present on passed descriptor from this closure
+                get: descriptor.get ? descriptor.get : null, //function () { return legacyGet(object, name, descriptor); } .bind(object),
+                set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(object, name, descriptor, value); } .bind(object) : function () { }
+            };
+
+            //Ensure 
+            if (ecma_descriptor.value && ecma_descriptor.get && $IsNotNullOrUndefined(ecma_descriptor.value) && $IsNotNullOrUndefined(ecma_descriptor.get)) { throw new TypeError('Properties cannot have both set accessor and value'); }
+            else if ($IsNullOrUndefined(ecma_descriptor.value)) delete ecma_descriptor.value;
+            else {
+                delete ecma_descriptor.get;
+                delete ecma_descriptor.set;
+            }
+
+            //Create getter / setter - might need to do a call scan to determine if this is an assignment
+            var getterSetter = function (value) { return ($IsNullOrUndefined(value) || value == descriptor.value) ? $legacyGet(object, name, descriptor) : $legacySet(object, name, descriptor, value); }
+
+            //Create value proxy object
+            var valueProxy = {
+                valueOf: function () { return getterSetter(arguments); },
+                toString: function () { return this.valueOf().toString(); }
+            }
+
+            valueProxy.prototype = Object;
+
+            //Store on object if enumerable
+            if (descriptor.enumerable) object[name] = valueProxy;
+
+            //Store in descriptor hash
+            descriptorHash[object] = {};
+            descriptorHash[object][name] = descriptor;
+
+            //Call the native implementation if defined
+            if (Object$defineProperty) Object$defineProperty(object, name, ecma_descriptor);
+        }
+
 
         // ===============  LINQ Utilities (Private)  =================================================
 
@@ -99,7 +284,7 @@
                 //If we are disposing then check for all instances to be disposed and remove the type
                 if (disposing && Object.keys($List$Instances).length === 0) {
                     //Remove exports
-                    Export.remove(List);
+                    $Export.remove(List);
                     List = null;
                     $List$Created = null;
                     $List$Instances = null;
@@ -117,11 +302,7 @@
 
         // Method:  $Validate
         // Description:  Make sure that all objects added to the List are of the same type.
-        function $Validate(list, object) {
-            //If we have not yet determined a type it is determined by the first object added
-            if (!list.$type || !object) return;
-            else if (object.constructor !== list.$type || !object.constructor instanceof list.$type) throw "Only one object type is allowed in a list";
-        }
+        function $Validate(type, object) { if (object.constructor !== type || !object.constructor instanceof type) throw "Only one object type is allowed in a list"; }
 
         //Array like Getter/Setter Logic, creates a getter for the List to access the inner array at the given index
         function $CreateGetterSetter$List(list, index) {
@@ -166,7 +347,7 @@
             this.Add = function (object) {
                 //object = object || $Default(object);
                 if (!oType) oType = object.constructor;
-                try { $Validate(this, object); }
+                try { $Validate(oType, object); }
                 catch (ex) { throw ex; }
                 listArray.push(object);
             }
@@ -243,7 +424,7 @@
                     if (what.length) {
                         if (!oType) oType = what[0].constructor;
                         what.forEach(function (tEl) {
-                            $Validate(this, tEl);
+                            $Validate(oType, tEl);
                         }, this);
                     } else {
                         if (!oType) oType = what.constructor;
@@ -538,7 +719,7 @@
                    //Ensure Array
                    if (value instanceof Array) {
                        //Ensure length
-                       if (value.length) value.forEach(function (v) { $Validate(this, v); }, this); //Ensure types
+                       if (value.length) value.forEach(function (v) { $Validate(oType, v); }, this); //Ensure types
                        //Set member
                        listArray = value;
                    }
@@ -626,56 +807,7 @@
 
         List.toString = function () { return /*'[object Class */'List'/*]'*/; };
 
-        //.Net JavaScript (this should be a new scope)
-
-        //Scope the window and Function variables
-        var window = window || extern,
-            Function = window.Function = window$Function = window.Function,
-            newScope = this,
-            args = arguments,
-            callee = arguments.callee,
-            caller = arguments.caller,
-            CLRItself = {
-                version: {
-                    major: 0.1,
-                    minor: 0.0001
-                },
-                valueOf: function () { return newScope; },
-                toString: function () { return 'CLR ' + [CLRItself.version.major, CLRItself.version.minor].join('.'); }
-            };
-
-        newScope.valueOf = CLRItself.valueOf;
-        newScope.toString = CLRItself.toString;
-        newScope.version = CLRItself.version;
-
-        // Method: Export 
-        // Description: The Export function takes the given what and puts it where (optionally as 'as')
-        function $Export(what, where/*, as*/) {
-            if (!what && !where) return;
-            var as = arguments[2] || what;
-            $Export.exported[as] = where;
-            where[as] = what;
-        }
-
-        //Memory for exported members
-        $Export.exported = {};
-
-        //Export Export to the window as export
-        $Export($Export, window, 'Export');
-
-        //Removes the given object from the exports if it was exported
-        $Export.remove = function (what) {
-            //Enumerate exported members
-            for (var t in $Export.exported) // t is type or typeName
-            //If there is a member with the same type name as what
-                if ($Export.exported.hasOwnProperty(t)) {
-                    //Express the typename to get where it was exported to and delete it as well as the Export entry
-                    delete ($Export.exported[t])[t]
-                    delete $Export.exported[t];
-                }
-        }
-
-        Export(List, window, 'List');
+        $Export(List, window, 'List');
 
         //Array like Getter/Setter Logic, creates a getter for the Dictionary to access the inner array at the given key
         function $CreateGetterSetter$Dictionary(dictionary, key) {
@@ -694,7 +826,7 @@
                     set: function (value) {
                         var _key = dictionary.Keys.IndexOf(key);
                         if (_key === -1) throw 'Key "' + key + '" Not Found in Dictionary.Set';
-                        $Validate(dictionary.Values, value);
+                        $Validate(dictionary.Values.$type, value);
                         try { dictionary.Values[_key] = value; }
                         catch (e) { throw e; } //Should reformat ex, All exceptions should derive from Error for better error handling
 
@@ -858,13 +990,13 @@
 
         Object.freeze(Dictionary);
 
-        Export(Dictionary, window, 'Dictionary');
+        $Export(Dictionary, window, 'Dictionary');
 
         //The void
         function Void() { return { toString: function () { return Void.toString(); }, valueOf: function () { javascript: void (arguments); } }; }
         Void.toString = 'Void';
 
-        Export(Void, window, 'Void');
+        $Export(Void, window, 'Void');
 
         //Security
         var Security = {
@@ -943,18 +1075,18 @@
         }
 
         //Export $IsCLR as IsCLR
-        Export($IsCLR, window, 'IsCLR');
+        $Export($IsCLR, window, 'IsCLR');
 
         //Checks for CLR Scope
         function $CheckCLRAccess() { if (!$IsCLR()) throw 'The CLR is required to access this scope'; }
 
         //Export $CheckCLRAccess as CheckCLRAccess
-        Export($CheckCLRAccess, window, 'CheckCLRAccess');
+        $Export($CheckCLRAccess, window, 'CheckCLRAccess');
 
         //Makes a class as Abstract
         var _Abstract = {};
 
-        function $IsAbstract(type) { return constructor.constructor.constructor === $abstractConstructor || _Abstract[type] !== undefined && type instanceof _Abstract[type]; }
+        function $IsAbstract(type) { return constructor && constructor.constructor && constructor.constructor.constructor && constructor.constructor.constructor === $abstractConstructor || _Abstract[type] !== undefined && type instanceof _Abstract[type]; }
         $Export($IsAbstract, window, 'IsAbstract');
 
         function $MakeAbstract(type) { return _Abstract[type] = type; }
@@ -1009,7 +1141,7 @@
         function $IsNewObject(object) { return ((object.toString() === '[object Object]') || (new Object() === object)); }
 
         //Export $GetTypeName to the window as GetTypeName
-        Export($GetTypeName, window, 'GetTypeName');
+        $Export($GetTypeName, window, 'GetTypeName');
 
         //Is function
         function $Is(what, type) {
@@ -1025,46 +1157,46 @@
             catch (_) { return false; }
         }
         //Export $Is to the window as Is
-        Export($Is, window, 'Is');
+        $Export($Is, window, 'Is');
 
         function $Not(_) { return !_; }
-        Export($Not, window, 'Not');
+        $Export($Not, window, 'Not');
         function $And(_, __) { return _ & __; }
-        Export($And, window, 'And');
+        $Export($And, window, 'And');
         function $Or(_, __) { return _ | __; }
-        Export($Or, window, 'Or');
+        $Export($Or, window, 'Or');
         function $Xor(_, __) { return _ ^ __; }
-        Export($Xor, window, 'Xor');
+        $Export($Xor, window, 'Xor');
         function $B(_) { return ~b; }
-        Export($B, window, 'B');
+        $Export($B, window, 'B');
         function $StringToInt(s) { return $B(s); }
-        Export($StringToInt, window, 'StringToInt');
+        $Export($StringToInt, window, 'StringToInt');
 
 
         //IsNot function
         function $IsNot(what, type) { return !$Is(what, type); }
-        Export($IsNot, window, 'IsNot');
+        $Export($IsNot, window, 'IsNot');
 
         function $IsNull(what) { return what === null; };
-        Export($IsNull, window, 'IsNull');
+        $Export($IsNull, window, 'IsNull');
 
         function $IsNotNull(what) { !$IsNull(what); };
-        Export($IsNotNull, window, 'IsNotNull');
+        $Export($IsNotNull, window, 'IsNotNull');
 
         function $IsUndefined(what) { return typeof what === 'undefined' || what === undefined; };
-        Export($IsUndefined, window, 'IsUndefined');
+        $Export($IsUndefined, window, 'IsUndefined');
 
         function $IsNullOrUndefined(what) { return $IsNull(what) || $IsUndefined(what); }
-        Export($IsNullOrUndefined, window, 'IsNullOrUndefined');
+        $Export($IsNullOrUndefined, window, 'IsNullOrUndefined');
 
         function $IsNotNullOrUndefined(what) { return !$IsNullOrUndefined(what); }
-        Export($IsNotNullOrUndefined, window, 'IsNotNullOrUndefined');
+        $Export($IsNotNullOrUndefined, window, 'IsNotNullOrUndefined');
 
         function $IsType(t) { if (t in extern) return true; t = $GetTypeName(t); if (t in extern) return true; return $TryCatch(function () { return $IsNotNullOrUndefined(Function('t', 'return delete new t()', t)); }, Function('return false')) }
-        Export($IsType, window, 'IsType');
+        $Export($IsType, window, 'IsType');
 
         function $IsNotType(t) { return !$IsType(t); }
-        Export($IsNotType, window, 'IsNotType');
+        $Export($IsNotType, window, 'IsNotType');
 
         //As
         function $As(what, type) { try { return new type(what); } catch (_) { return $Cast(what, type); } }
@@ -1073,15 +1205,15 @@
         Object.as = $As;
 
         //Export $As to the window as Is
-        Export($As, window, 'As');
+        $Export($As, window, 'As');
 
         //Export $Is to the window as Is
-        Export($Is, window, 'Is');
+        $Export($Is, window, 'Is');
 
         //Export to static
         Object.is = $Is;
 
-        Export($Is, window, 'Is');
+        $Export($Is, window, 'Is');
 
         //Export to prototype
         //Object.prototype.is = Object.is;        
@@ -1174,7 +1306,7 @@
         $Subclass.Linker = {}
         $Subclass.Linker.Options = { ConstructorPrefix: '_ctor_', TypePrefix: '_type_', LinkSymbol: '_^_', SurrogateConstructorPostFix: 'SurrogateConstructor' };
 
-        Export($Subclass, window, 'Subclass');
+        $Export($Subclass, window, 'Subclass');
 
         Security.addSafeScope(CLRClass, 3, $Subclass);
 
@@ -1251,8 +1383,8 @@
         baseClass.toString = function () { return /*'[object CLRClass */'baseClass'/*]'*/; };
 
         //Export Defined Classes for Unit Tests and make pseudo keyword 'abstract'
-        Export(baseClass, window, 'Abstract');
-        Export(baseClass, window);
+        $Export(baseClass, window, 'Abstract');
+        $Export(baseClass, window);
 
         //Exception Class
         function CLRException(msg, inner) {
@@ -1296,7 +1428,7 @@
         //Object.freeze(CLRClass);
 
         //Export Class keyword to the window
-        Export(CLRClass, window);
+        $Export(CLRClass, window);
 
         Security.addSafeScope(CLRClass, 1, Function.prototype.apply);
         Security.addSafeScope(CLRClass, 4, $Cast);
@@ -1331,13 +1463,13 @@
 
         }
 
-        Export($Using, window, 'Using');
+        $Export($Using, window, 'Using');
 
         //The CLRObject which will be the base class of all classes going forward... It will be exported under System.Object
         function CLRObject() { CLRClass.apply(this, arguments); }
         CLRObject.toString = function () { return /*'[object CLRClass */'CLRObject'/*]'*/; }
         CLRObject = $Subclass(CLRObject, CLRClass);
-        Export(CLRObject, window, 'CLRObject');
+        $Export(CLRObject, window, 'CLRObject');
 
         //The System Object
         var System = {}; //Might need a namespace construct
@@ -1493,7 +1625,7 @@
 
         System.Diagnostics.Except = function Except(ex) { alert(+ex ? 'Message: ' + ex : this.caller.toString()); }
 
-        Export(System, window, 'System');
+        $Export(System, window, 'System');
 
 
 
@@ -1523,7 +1655,7 @@
         //Ensure instanceof works correctly
         Subclass(myClass, baseClass);
 
-        Export(myClass, window);
+        $Export(myClass, window);
 
         //Derived class from myClass
         function anotherClass(instance) {
@@ -1555,7 +1687,7 @@
         //Ensure instanceof works correctly
         Subclass(anotherClass, myClass);
 
-        Export(anotherClass, window);
+        $Export(anotherClass, window);
 
         //This is maybe not the best place
         function $Cast(type, call) {
@@ -1564,7 +1696,7 @@
             return call.bind(new type(this)).call(this);
         }
 
-        Export($Cast, window, 'Cast');
+        $Export($Cast, window, 'Cast');
 
         //Probably not needed
         var $Function$prototype$call = Function.prototype.call;
@@ -1817,7 +1949,7 @@
 
         Object.freeze(Reflection);
 
-        Export(Reflection, window, 'Reflection');
+        $Export(Reflection, window, 'Reflection');
 
         System.Reflection = Reflection;
 
@@ -2451,132 +2583,7 @@
                 };
             });
         }
-
-
-        if ((navigator.appVersion.indexOf('7.') !== -1 || navigator.appVersion.indexOf('8.') !== -1 && navigator.appVersion.indexOf('MSIE') !== -1)) {
-            //Backup prototype
-            var Object$prototyoe = Object.prototype;
-            //Set the prototype to the Element Constructor
-            Object.prototype = document.createElement;
-            //Backup defineProperty cause IE8 has it but only is valid for Elements.
-            var Object$defineProperty = Object.defineProperty;
-            //Undefine defineProperty
-            Object.defineProperty = undefined;
-        }
-
-        //Memory for frozen objects
-        var $freezer = {}
-
-        //Puts the ice on
-        function ice(object) { $freezer[object] = true; if (Object$freeze) Object$freeze(object); }
-
-        //Takes the ice off
-        function thaw(object) { delete $freezer[object]; }
-
-        //Freeze the object
-        function freeze(object) { return ice(object); }
-
-        function isFrozen(object) { return $freezer[object] === true; }
-
-        var Object$freeze = Object.freeze;
-
-        //Export
-        Object.freeze = freeze;
-        Object.isFrozen = isFrozen;
-
-        //Memory for sealed objects
-        var $sealed = {};
-
-        //Export
-        var Object$seal = Object.seal, Object$isSealed = Object.isSealed;
-        Object.seal = function seal(object) { $sealed[object] = true; if (Object$isSealed) Object$isSealed(Object); }
-        Object.isSealed = function isSealed(object) { return $sealed[object] ? true : Object$isSealed ? Object$isSealed(object) : false; }
-
-        var descriptorHash = {};
-
-        function legacyGet(object, property, descriptor) {
-            return descriptor.value ?
-                    descriptor.value.valueOf() :
-                        descriptor.get ?
-                            descriptor.get.bind(object)() : object[property];
-        }
-
-        $Export(legacyGet, window, 'legacyGet');
-
-        function legacySet(object, property, descriptor, value) {
-            if (!descriptor.writeable || (descriptor.enforceType && !(value instanceof descriptor.value))) return;
-            if (descriptor.set) descriptor.set(value);
-            else if (descriptor.value) descriptor.value = descriptorHash[object][property]['value'] = value;            
-        }
-
-        $Export(legacySet, window, 'legacySet')
-
-        function legacyIterate(object) {
-            ///TODO
-            for (var m in object) {
-                //Kinda Need LINQ Yield here, could also use this on the list to reverse faster
-            }
-        }
-
-        function setDescriptor(object, property, newDescriptor) {
-            if (!object || !property) return;
-            var existing = descriptorHash[object][property];
-            if (existing && !existing.configurable) throw 'Cannot modify the existing descriptor for the non-configurable property: "' + property + '"';
-            Object.defineProperty(object, name, newDescriptor || {
-                enumerable: newDescriptor.enumerable || false,
-                writeable: newDescriptor.writeable || false,
-                configurable: descriptor.configurable || false,
-                value: newDescriptor.value || null,
-                enforceType: descriptor.enforceType || false,
-                get: newDescriptor.get || undefined,
-                set: newDescriptor.set || undefined
-            });
-            //Store last version
-            descriptorHash[object][property]._previous = existing;
-        }
-
-        $Export(setDescriptor, window, 'setDescriptor');
-
-
-        var Object$defineProperty = Object.defineProperty;
-        //Adds a property to an object with getter, setter and descriptor support
-        Object.defineProperty = function defineProperty(object, name, descriptor) {
-            if (!object || !name) return;
-            if ($IsNotNullOrUndefined(descriptor.value) && $IsNotNullOrUndefined(descriptor.get)) throw 'Descriptor cannot contain a value and a getter';
-            var ecma_descriptor = {
-                enumerable: descriptor.enumerable || false,
-                writeable: descriptor.writeable || false,
-                configurable: descriptor.configurable || false,
-                value: descriptor.value || null,
-                //enforceType: descriptor.enforceType || false, //Will be present on passed descriptor from this closure
-                get: descriptor.get ? descriptor.get : function () { return legacyGet(object, name, descriptor); } .bind(object),
-                set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(object, name, descriptor, value); } .bind(object) : function () { }
-            };
-
-            //Ensure 
-            if (ecma_descriptor.value && ecma_descriptor.get && $IsNotNullOrUndefined(ecma_descriptor.value) && $IsNotNullOrUndefined(ecma_descriptor.get)) { throw TypeError('Properties cannot have both set accessor and value'); }
-            else if ($IsNullOrUndefined(ecma_descriptor.value)) delete ecma_descriptor.value;
-            else if ($IsNullOrUndefined(ecma_descriptor.get)) delete ecma_descriptor.get;
-
-            //Create getter / setter - might need to do a call scan to determine if this is an assignment
-            var getterSetter = function (value) { return ($IsNullOrUndefined(value) || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
-
-            //Create value proxy object
-            var valueProxy = {
-                valueOf: function () { return getterSetter(arguments); },
-                toString: function () { return this.valueOf().toString(); }
-            }
-
-            //Store on object if enumerable
-            if (descriptor.enumerable) object[name] = valueProxy;
-
-            //Store in descriptor hash
-            descriptorHash[object] = {};
-            descriptorHash[object][name] = descriptor;
-
-            //Call the native implementation if defined
-            if (Object$defineProperty) Object$defineProperty(object, name, ecma_descriptor);
-        }
+        /*</ltIE9>*/
 
 
 
