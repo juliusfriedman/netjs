@@ -795,7 +795,7 @@
             }
 
             //Cleanup instance prototype
-            CleanPrototype(this);
+            $CleanPrototype(this);
 
             //Add event for destructor in executed closure
             window.addEventListener('unload', function () { $List$Dispose(key, true); });
@@ -980,7 +980,7 @@
 
             //return Object.freeze((function (self) { self.Keys.ForEach(function (k) { $CreateGetterSetter$Dictionary(self, k); }); return self; })(this));
 
-            CleanPrototype(this);
+            $CleanPrototype(this);
 
             return this;
 
@@ -1046,8 +1046,8 @@
         //$Export(Security, window);
 
         //Cleanup prototype
-        function $cleanPrototype(object) { for (var p in object) if (!object.hasOwnProperty(p)) delete object.p; }
-        $Export($cleanPrototype, window, 'CleanPrototype');
+        function $CleanPrototype(object) { for (var p in object) if (!Object.hasOwnProperty(object, p) && typeof object.p !== 'undefined') delete object.p; }
+        $Export($CleanPrototype, window, 'CleanPrototype');
 
         //Converts arguments into ParameterInfo's
         function $ConvertArguments(argumentz) {
@@ -1284,7 +1284,7 @@
                 constructor.prototype = prototypeObject;
             }
 
-            $cleanPrototype(derivedConstructor);
+            $CleanPrototype(derivedConstructor);
 
             //Copy prototype if indicted
             if (inheritPrototype && isInstance && derivedConstructor.$inheritsMembers === true) for (var i in constructor.prototype) if (!(i === 'constructor') && !i.indexOf('$') >= 0) derivedConstructor.prototype[i] = constructor.prototype[i];
@@ -1409,6 +1409,7 @@
         function CLRClass(argumentz) {
             var base = this.base || this.constructor || this.prototype, typeName;
             typeName = $GetTypeName(base);
+            argumentz = argumentz || arguments;
             ClassTypeDescriptorHash[typeName] = ClassTypeDescriptorHash[typeName] || {
                 get: function () { return typeName; },
                 set: function (value) { $CheckCLRAccess(); ClassTypeDescriptorHash[this] = value; }
@@ -1575,7 +1576,7 @@
 
             (function (self, counter) { while (counter >= 0) $CreateGetterSetter$String(self, --counter); })(this, length);
 
-            CleanPrototype(this);
+            $CleanPrototype(this);
 
             Object.seal(this);
 
