@@ -2487,14 +2487,10 @@
         //Memory for sealed objects
         var $sealed = {};
 
-        function seal(object) { $sealed[object] = true; if (Object$Sealed) Object$Sealed(Object); }
-
-        function isSealed(object) { return $sealed[object] ? true : false; }
-
         //Export
-        var Object$Sealed = Object.seal;
-        Object.seal = seal;
-        Object.isSealed = isSealed;
+        var Object$seal = Object.seal, Object$isSealed = Object.isSealed;
+        Object.seal = function seal(object) { $sealed[object] = true; if (Object$isSealed) Object$isSealed(Object); }
+        Object.isSealed = function isSealed(object) { return $sealed[object] ? true : Object$isSealed ? Object$isSealed(object) : false; }
 
         var descriptorHash = {};
 
@@ -2509,15 +2505,16 @@
 
         function legacySet(object, property, descriptor, value) {
             if (!descriptor.writeable || (descriptor.enforceType && !(value instanceof descriptor.value))) return;
-            object[property] = value;
+            if (descriptor.set) descriptor.set(value);
+            else if (descriptor.value) descriptor.value = descriptorHash[object][property]['value'] = value;            
         }
 
-        $Export(legacyGet, window, 'legacySet')
+        $Export(legacySet, window, 'legacySet')
 
         function legacyIterate(object) {
             ///TODO
             for (var m in object) {
-                //Kinda Need LINQ Yield here
+                //Kinda Need LINQ Yield here, could also use this on the list to reverse faster
             }
         }
 
@@ -2525,7 +2522,7 @@
             if (!object || !property) return;
             var existing = descriptorHash[object][property];
             if (existing && !existing.configurable) throw 'Cannot modify the existing descriptor for the non-configurable property: "' + property + '"';
-            defineProperty(object, name, newDescriptor || {
+            Object.defineProperty(object, name, newDescriptor || {
                 enumerable: newDescriptor.enumerable || false,
                 writeable: newDescriptor.writeable || false,
                 configurable: descriptor.configurable || false,
@@ -2541,8 +2538,9 @@
         $Export(setDescriptor, window, 'setDescriptor');
 
 
+        var Object$defineProperty = Object.defineProperty;
         //Adds a property to an object with getter, setter and descriptor support
-        function defineProperty(object, name, descriptor) {
+        Object.defineProperty = function defineProperty(object, name, descriptor) {
             if (!object || !name) return;
             if ($IsNotNullOrUndefined(descriptor.value) && $IsNotNullOrUndefined(descriptor.get)) throw 'Descriptor cannot contain a value and a getter';
             var ecma_descriptor = {
@@ -2550,16 +2548,18 @@
                 writeable: descriptor.writeable || false,
                 configurable: descriptor.configurable || false,
                 value: descriptor.value || null,
-                //enforceType: descriptor.enforceType || false,
+                //enforceType: descriptor.enforceType || false, //Will be present on passed descriptor from this closure
                 get: descriptor.get ? descriptor.get : function () { return legacyGet(object, name, descriptor); } .bind(object),
                 set: descriptor.set ? descriptor.set : descriptor.writable ? function (value) { return legacySet(object, name, descriptor, value); } .bind(object) : function () { }
             };
 
-            if (ecma_descriptor.value && ecma_descriptor.get && $IsNotNull(ecma_descriptor.value)) { throw TypeError('Properties cannot have both set accessor and value'); }
-            else delete ecma_descriptor.value;
+            //Ensure 
+            if (ecma_descriptor.value && ecma_descriptor.get && $IsNotNullOrUndefined(ecma_descriptor.value) && $IsNotNullOrUndefined(ecma_descriptor.get)) { throw TypeError('Properties cannot have both set accessor and value'); }
+            else if ($IsNullOrUndefined(ecma_descriptor.value)) delete ecma_descriptor.value;
+            else if ($IsNullOrUndefined(ecma_descriptor.get)) delete ecma_descriptor.get;
 
             //Create getter / setter - might need to do a call scan to determine if this is an assignment
-            var getterSetter = function (value) { return (IsNullOrUndefined(value) || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
+            var getterSetter = function (value) { return ($IsNullOrUndefined(value) || value == descriptor.value) ? legacyGet(object, name, descriptor) : legacySet(object, name, descriptor, value); }
 
             //Create value proxy object
             var valueProxy = {
@@ -2577,10 +2577,6 @@
             //Call the native implementation if defined
             if (Object$defineProperty) Object$defineProperty(object, name, ecma_descriptor);
         }
-
-        var Object$defineProperty = Object.defineProperty;
-        //Augment Object
-        Object.defineProperty = defineProperty;
 
 
 
@@ -2603,7 +2599,7 @@
         String.implement({
 
             test: function (regex, params) {
-                return ((typeOf(regex) == 'regexp') ? regex : new RegExp('' + regex, params)).test(this);
+                return ((typeOf(regex) === 'regexp') ? regex : new RegExp('' + regex, params)).test(this);
             },
 
             contains: function (string, separator) {
