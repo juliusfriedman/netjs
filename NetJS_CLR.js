@@ -31,7 +31,7 @@
         function $Select(list, query) {
             if (!query) return this;
             var bind = (query instanceof Function) && query.toString().indexOf('this') !== -1,
-            pass = !bind && typeof query !== 'string',
+            pass = !bind && typeof query !== 'string' && query.toString().indexOf('.') !== -1,
             lambda = $IsLambda(query);
             selectList = new List(list.$type);
             //possibly need to bind query on this if query instanceof function
@@ -42,11 +42,14 @@
                     (query.bind(tEl)()) :
                         !lambda && pass ? (query(tEl)) : //Pass the element to the query if there is no lambda
                             lambda ? $ProcessLambda(query).bind(tEl)(tEl) : //Process the lambda if present
-                                (new Function('_', 'with(_) return (' + query + ')')(tEl)); //Fallback to with method
+                                (new Function('_', 'with(_) return (' + query + ')')(tEl))(); //Fallback to with method
                 }
-                catch (_) { result = false; }
+                catch (_) {
+                    try { result = (new Function('_', 'with(_) return (' + query + ')')(tEl)) }
+                    catch (__) { result = false; }
+                }
                 //If there is a result add it by determining if there was a lambda or the result is an instance of the list type.
-                if (result) selectList.Add(lambda || result instanceof list.$type ? result : tEl);
+                if (result) selectList.Add(tEl);
             });
             return selectList;
         }
@@ -121,7 +124,7 @@
         // Description:  Make sure that all objects added to the List are of the same type.
         function $Validate(list, object) {
             //If we have not yet determined a type it is determined by the first object added
-            if (!list.$type && !object) return;
+            if (!list.$type || !object) return;
             else if (object.constructor !== list.$type || !object.constructor instanceof list.$type) throw "Only one object type is allowed in a list";
         }
 
@@ -178,11 +181,8 @@
             this.AddRange = function (arrayOrList) {
                 if (!arrayOrList) return;
                 if (arrayOrList instanceof List) arrayOrList = arrayOrList.array;
-                try {
-                    arrayOrList.forEach(function (tEl) {
-                        this.Add(tEl);
-                    }, this);
-                } catch (e) { throw e; }
+                try { arrayOrList.forEach(this.Add); }
+                catch (e) { throw e; }
             }
 
             // Method:  Clear
@@ -387,7 +387,7 @@
             // Description:  Order (ascending) the objects in the list by the given object property name.
             this.OrderBy = function (property/*, desc*/) {
                 //Make the list and the interval array
-                var l = new List(listArray.slice(0).sort($GenericSort(property))),
+                var l = new List(oType, listArray.slice(0).sort($GenericSort(property)), capacity),
                 //Determine if we need to reverse
             desc = arguments[1] || false;
                 if (desc) l.Reverse();
@@ -407,7 +407,7 @@
                 keys = undefined;
                 start = start || 0;
                 try { //Object Type
-                    Object.keys(object);
+                    keys = Object.keys(object);
                     //Iterate list
                     listArray.forEach(function (tEl, index) {
                         if (index < start || contained) return;
@@ -416,7 +416,7 @@
                             //Try to ascertain equality, contained is equal to the expression of tEl[key] being exactly equal to object[key]'s value
                             try { contained = (tEl[key] === object[key]); contained ? $containsLastResult = index : $containsLastResult = -1; }
                             catch (_) { contained = false; $containsLastResult = -1; }
-                            if (containsLastResult !== -1) return;
+                            if ($containsLastResult !== -1) return;
                         });
                     });
                 }
@@ -461,7 +461,7 @@
             // Method: Distinct
             // Description: Gets a copy of the list with only unique elements.
             this.Distinct = function () {
-                var results = new List();
+                var results = new List(oType, [], capacity);
                 try {
                     //this.ForEach(function (tEl) { if (!results.Contains(tEl)) results.Add(tEl); });
                     //Equivelant to the following except the below is native 
@@ -526,30 +526,6 @@
             // Method:  Random
             // Description:  Returns a random element which matches the given query or a random element from the List if no query is given
             this.Random = function (query) { var rand = Math.floor((Math.random() * listArray.length) + 0); return query ? this.Where(query).ElementAt(rand) : this.ElementAt(rand); }
-
-            //Copy constructor (utilized if first parameter in constructor is a List instance
-            if (arguments[0] && arguments[0] instanceof List) {
-                capacity += arguments[0].length;
-                oType = arguments[0].$type; // Set the type of the List from the given
-                listArray = arguments[0].array; // Set the inner array of the List from the given
-            } else if (arguments[0] && arguments[0] instanceof Array && arguments[0].length) try { //If there is a type given it may be contained in an array which is to be used as the interal array..       
-                capacity += arguments[0].length;
-                oType = arguments[0][0].constructor; // Set type of the List from the first element in the given array
-                arguments[1] = arguments[1] || arguments[0]; // Make a new argument incase one is not given which should be the array given. This will be used after AddRange is constructed to verify each given item complies with the List logic.
-            } catch (_) { }
-
-            //If there is an array given then each member of the array must be added and verified
-            if (arguments[1] && arguments[1].length) {
-                if (capacity <= arguments[1].length) capacity += arguments[1].length;
-                try { this.AddRange(arguments[1]); } catch (e) { throw e; }
-            }
-
-            //Cleanup instance prototype
-            //for (var p in this) if (!this.hasOwnProperty(p)) delete this.p;
-            CleanPrototype(this);
-
-            //Add event for destructor in executed closure
-            window.addEventListener('unload', function () { $List$Dispose(key, true); });
 
             // ===============  Public Properties  =================================================
 
@@ -623,6 +599,31 @@
             (function (self, counter) { while (counter >= 0) $CreateGetterSetter$List(self, --counter); })(this, capacity * 2);
 
             //And I bet before then I could even use Object.watch or a polyfill of it to enfore a pseudo 'missing_method' and then invoke this function... how fortuitist
+
+
+            //Copy constructor (utilized if first parameter in constructor is a List instance
+            if (arguments[0] && arguments[0] instanceof List) {
+                capacity += arguments[0].length;
+                oType = arguments[0].$type; // Set the type of the List from the given
+                listArray = arguments[0].array; // Set the inner array of the List from the given
+            } else if (arguments[0] && arguments[0] instanceof Array && arguments[0].length) try { //If there is a type given it may be contained in an array which is to be used as the interal array..       
+                capacity += arguments[0].length;
+                oType = arguments[0][0].constructor; // Set type of the List from the first element in the given array
+                arguments[1] = arguments[1] || arguments[0]; // Make a new argument incase one is not given which should be the array given. This will be used after AddRange is constructed to verify each given item complies with the List logic.
+            } catch (_) { }
+
+            //If there is an array given then each member of the array must be added and verified
+            if (arguments[1] && arguments[1].length) {
+                if (capacity <= arguments[1].length) capacity += arguments[1].length;
+                try { this.AddRange(arguments[1]); } catch (e) { throw e; }
+            }
+
+            //Cleanup instance prototype
+            //for (var p in this) if (!this.hasOwnProperty(p)) delete this.p;
+            CleanPrototype(this);
+
+            //Add event for destructor in executed closure
+            window.addEventListener('unload', function () { $List$Dispose(key, true); });
 
             //freeze new instance
             return Object.freeze(this);
