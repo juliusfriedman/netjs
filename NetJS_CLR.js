@@ -229,10 +229,10 @@
                             !lambda && pass ? (query(tEl)) : //Oterhwise Pass the element to the query if there is no lambda
                                 lambda ? $ProcessLambda(query).bind(tEl)(tEl) : //Otherwise Process the lambda if present
                                     (new Function('_', 'with(_) return (' + query + ')')(tEl)); //By falling back to with method, this results in a function expression when used with an unquantified scope to achieve the LINQ Syntax compatibility
+                    if (result instanceof Function) result = result();
                 }
                 catch (_) { result = false; }
-                //If there is a result add it by determining if there was a lambda left and evaluating it or the result of the previous evaluation
-                if (result instanceof Function) result = result();
+                //If there is a result add it
                 if (result) selectList.Add(tEl);
             });
             return selectList;
